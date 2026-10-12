@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # HeatShield
 
 HeatShield is a heat-risk platform for Indian cities, piloting in Delhi around
