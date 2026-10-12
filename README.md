@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # HeatShield
 
 HeatShield is a heat-risk platform for Indian cities, piloting in Delhi around
@@ -32,3 +33,6 @@ Run the package smoke tests from the project root with:
 ```console
 pytest
 ```
+=======
+# HeatShield-GCS
+>>>>>>> origin/main
