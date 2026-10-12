@@ -32,6 +32,3 @@ Run the package smoke tests from the project root with:
 ```console
 pytest
 ```
-=======
-# HeatShield-GCS
->>>>>>> origin/main
