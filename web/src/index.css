@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+@theme {
+  --color-heat-green: #377c59;
+  --color-heat-lime: #8eaa53;
+  --color-heat-amber: #c29131;
+  --color-heat-orange: #d36632;
+  --color-heat-red: #b8463d;
+  --color-heat-dark: #234c3a;
+  --font-display: "DM Sans", "Avenir Next", "Segoe UI", sans-serif;
+  --font-body: "DM Sans", "Avenir Next", "Segoe UI", sans-serif;
+}
+
+:root {
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: var(--canvas);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  --heat-green: #377c59;
+  --heat-lime: #8eaa53;
+  --heat-amber: #c29131;
+  --heat-orange: #d36632;
+  --heat-red: #b8463d;
+  --heat-dark: #234c3a;
+  --heat-pale: #eaf1e8;
+  --canvas: #f8f8f4;
+  --surface: #fff;
+  --ink: #202a24;
+  --ink-muted: #788179;
+  --line: #e7e9e2;
+  --line-strong: #d8ddd4;
+  --map-background: #ecefe6;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --heat-green: #76b88e;
+  --heat-lime: #b2c979;
+  --heat-amber: #e0b655;
+  --heat-orange: #ed8b5b;
+  --heat-red: #eb7770;
+  --heat-dark: #96c8a5;
+  --heat-pale: #293a30;
+  --canvas: #151a17;
+  --surface: #1d2420;
+  --ink: #ecf0eb;
+  --ink-muted: #a1aca3;
+  --line: #303a33;
+  --line-strong: #465149;
+  --map-background: #29332d;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--heat-green) 58%, transparent);
+  outline-offset: 3px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--heat-green) 25%, transparent);
+}
