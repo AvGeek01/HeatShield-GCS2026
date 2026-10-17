@@ -24,9 +24,25 @@ dist/
 .env
 .env.*
 !.env.example
+*.env.local
+secrets.h
 
 # Editor and operating system files
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Generated data and large/private artifacts
+.ipynb_checkpoints/
+node_modules/
+.pio/
+data/raw/
+data/processed/
+private/
+*.parquet
+*.tif
+*.mp4
+*.mov
+*.mkv
+*.log
