@@ -4,6 +4,9 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  build: {
+    chunkSizeWarningLimit: 1100,
+  },
   optimizeDeps: {
     exclude: ['maplibre-gl'],
   },

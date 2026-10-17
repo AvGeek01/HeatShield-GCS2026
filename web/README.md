@@ -14,8 +14,11 @@ npm run dev
 ```
 
 The mock API is opt-in. Set `VITE_USE_MOCK_API=true` in `.env.local` to view
-the demo forecast, hotspot data, and intervention plan. Set it to `false` and
-configure `VITE_API_BASE_URL` to connect to the API.
+the demo forecast, hotspot data, and intervention plan. Development mode
+defaults to mock data through `.env.development`; set
+`VITE_USE_MOCK_API=false` in `.env.local` and configure `VITE_API_BASE_URL` to
+connect to the API instead. API requests time out after 15 seconds, and the
+city heatmap can be retried independently of the intervention optimizer.
 
 ## Checks
 

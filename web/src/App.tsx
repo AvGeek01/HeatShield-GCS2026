@@ -253,21 +253,29 @@ function HeatMap({ data }: { data: FeatureCollection<Point, HeatmapProperties> }
 
 function CityApp() {
   const [heatmap, setHeatmap] = useState<FeatureCollection<Point, HeatmapProperties> | null>(null)
+  const [heatmapLoading, setHeatmapLoading] = useState(true)
+  const [heatmapError, setHeatmapError] = useState<string | null>(null)
   const [plan, setPlan] = useState<InterventionPlan | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [planError, setPlanError] = useState<string | null>(null)
+  const [heatmapRequest, setHeatmapRequest] = useState(0)
 
   useEffect(() => {
     let current = true
-    Promise.all([getHeatmap(), getInterventionPlan()])
-      .then(([heatmapResult, planResult]) => {
-        if (current) {
-          setHeatmap(heatmapResult)
-          setPlan(planResult)
-        }
+    getHeatmap()
+      .then((result) => { if (current) setHeatmap(result) })
+      .catch((reason: unknown) => {
+        if (current) setHeatmapError(reason instanceof Error ? reason.message : 'Unexpected response from the heatmap service.')
       })
-      .catch((reason: Error) => { if (current) setError(reason.message) })
+      .finally(() => { if (current) setHeatmapLoading(false) })
+
+    getInterventionPlan()
+      .then((result) => { if (current) setPlan(result) })
+      .catch((reason: unknown) => {
+        if (current) setPlanError(reason instanceof Error ? reason.message : 'Unexpected response from the optimizer service.')
+      })
+
     return () => { current = false }
-  }, [])
+  }, [heatmapRequest])
 
   return (
     <PageFrame>
@@ -279,7 +287,7 @@ function CityApp() {
         </div>
         <button className="date-button" type="button"><span aria-hidden="true">▦</span> Today, 18 Oct <span aria-hidden="true">⌄</span></button>
       </section>
-      {error && <p className="error-banner" role="alert">Could not load city data: {error}</p>}
+      {planError && <p className="error-banner" role="alert">Could not load intervention recommendations: {planError}</p>}
       <section className="city-metrics" aria-label="City heat metrics">
         <Metric label="People at high risk" value={plan ? plan.population_exposed.toLocaleString('en-IN') : '—'} tone="hot" />
         <Metric label="Priority hotspots" value={heatmap ? String(heatmap.features.filter((feature) => feature.properties.risk >= 65).length).padStart(2, '0') : '—'} tone="warm" />
@@ -292,7 +300,30 @@ function CityApp() {
             <div><span className="card-kicker">NEIGHBOURHOOD VIEW</span><h2>Rohini heat map</h2></div>
             <button className="small-select" type="button">Heat risk <span aria-hidden="true">⌄</span></button>
           </div>
-          {heatmap ? <HeatMap data={heatmap} /> : <div className="map-placeholder">Loading hotspot map…</div>}
+          {heatmap
+            ? <HeatMap data={heatmap} />
+            : (
+              <div className="map-placeholder" role={heatmapError ? 'alert' : 'status'}>
+                {heatmapLoading
+                  ? 'Loading hotspot map…'
+                  : (
+                    <div className="map-load-error">
+                      <p>Could not load hotspot map: {heatmapError}</p>
+                      <button
+                        type="button"
+                        className="map-retry-button"
+                        onClick={() => {
+                          setHeatmapError(null)
+                          setHeatmapLoading(true)
+                          setHeatmapRequest((request) => request + 1)
+                        }}
+                      >
+                        Try again
+                      </button>
+                    </div>
+                  )}
+              </div>
+            )}
           <div className="map-legend">
             <span>LOWER RISK</span><div className="legend-gradient" /><span>HIGHER RISK</span>
             <span className="legend-area">Showing <strong>Rohini · Ward 22</strong></span>

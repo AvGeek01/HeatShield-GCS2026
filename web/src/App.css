@@ -723,6 +723,28 @@ h1 {
   font-size: 12px;
 }
 
+.map-load-error {
+  max-width: 360px;
+  padding: 16px;
+  text-align: center;
+}
+
+.map-load-error p {
+  margin: 0 0 12px;
+  color: var(--heat-red);
+  line-height: 1.5;
+}
+
+.map-retry-button {
+  padding: 7px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  font: 600 11px var(--font-body);
+}
+
 .map-error {
   display: inline-block;
   margin: 12px;

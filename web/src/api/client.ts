@@ -7,6 +7,7 @@ export const isMockMode = import.meta.env.VITE_USE_MOCK_API === 'true'
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...init,
+    signal: init?.signal ?? AbortSignal.timeout(15000),
     headers: { Accept: 'application/json', ...init?.headers },
   })
 
