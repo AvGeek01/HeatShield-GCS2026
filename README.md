@@ -42,6 +42,23 @@ implemented.
 
 ### `/heatcore`
 
+Create and activate the Python 3.13 virtual environment, then install the
+package and its test dependency:
+
+```powershell
+py -3.13 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e "heatcore[test]"
+python -m pytest
+```
+
+Install optional dependencies for the model, geospatial, and optimization
+workflows as needed:
+
+```powershell
+python -m pip install -e "heatcore[ml,geospatial,optimization]"
+```
+
 ### `/web`
 
 ### `/firmware`
@@ -51,4 +68,3 @@ implemented.
 ### `/docs`
 
 <!-- Run commands will be added as each component becomes runnable. -->
-

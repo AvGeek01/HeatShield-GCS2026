@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "heatshield-heatcore"
+version = "0.1.0"
+description = "Core interfaces for the HeatShield heat-risk platform."
+requires-python = ">=3.11"
+
+[project.optional-dependencies]
+ml = [
+    "numpy==2.5.4",
+    "pandas==3.0.6",
+    "scikit-learn==1.9.1",
+    "xgboost==3.4.1",
+    "shap==0.54.1",
+]
+geospatial = [
+    "geopandas==1.2.0",
+    "shapely==2.2.0",
+    "pyarrow==26.0.0",
+    "osmnx==2.1.1",
+]
+optimization = [
+    "pulp==4.0.1",
+    "ortools==9.15.6755",
+]
+test = [
+    "pytest==9.1.1",
+]
+
+[tool.setuptools]
+packages = ["heatcore"]
+package-dir = { heatcore = "." }
