@@ -55,9 +55,9 @@ class RiskResponse(BaseModel):
     actions: list[str]
 
 
-class PolygonGeometry(BaseModel):
-    type: Literal["Polygon"] = "Polygon"
-    coordinates: list[list[tuple[float, float]]]
+class PointGeometry(BaseModel):
+    type: Literal["Point"] = "Point"
+    coordinates: tuple[float, float]
 
 
 class LineStringGeometry(BaseModel):
@@ -75,7 +75,7 @@ class HeatCellProperties(BaseModel):
 
 class HeatCellFeature(BaseModel):
     type: Literal["Feature"] = "Feature"
-    geometry: PolygonGeometry
+    geometry: PointGeometry
     properties: HeatCellProperties
 
 
@@ -122,6 +122,16 @@ class OptimizeRequest(BaseModel):
     budget_inr: float = Field(gt=0, le=1_000_000_000)
     bbox: list[float] = Field(min_length=4, max_length=4)
 
+    @field_validator("bbox", mode="before")
+    @classmethod
+    def parse_bbox(cls, value: object) -> object:
+        if isinstance(value, str):
+            try:
+                value = [float(bound.strip()) for bound in value.split(",")]
+            except ValueError as exc:
+                raise ValueError("bbox must be four comma-separated numbers or a four-number array") from exc
+        return value
+
     @field_validator("bbox")
     @classmethod
     def validate_bbox(cls, value: list[float]) -> list[float]:
@@ -136,7 +146,7 @@ class OptimizeRequest(BaseModel):
 class Intervention(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    cell_id: str | None = None
+    cell_id: str = Field(min_length=1)
     type: ResourceType
     units: int = Field(default=1, ge=1, le=100)
 
@@ -156,10 +166,20 @@ class RankedHotspot(BaseModel):
     interventions: list[InterventionPlanItem]
 
 
+class InterventionSummary(BaseModel):
+    name: str
+    locations: int = Field(ge=0)
+    cost_inr: float = Field(ge=0)
+
+
 class OptimizeResponse(BaseModel):
     ranked_hotspots: list[RankedHotspot]
     total_cost_inr: float = Field(ge=0)
     expected_risk_reduction: float = Field(ge=0)
+    budget_inr: float = Field(ge=0)
+    people_reached: int = Field(ge=0)
+    population_exposed: int = Field(ge=0)
+    interventions: list[InterventionSummary]
 
 
 class SimulateRequest(BaseModel):
@@ -236,6 +256,35 @@ def _parse_query_bbox(raw_bbox: str) -> BoundingBox:
         ) from exc
 
 
+def _cell_id(row: int, column: int, bounds: tuple[float, float, float, float]) -> str:
+    encoded_bounds = ":".join(repr(bound) for bound in bounds)
+    return f"delhi:v1:{row}:{column}:{encoded_bounds}"
+
+
+def _cell_bounds(cell_id: str) -> tuple[float, float, float, float]:
+    legacy_parts = cell_id.split("-")
+    if len(legacy_parts) == 3 and legacy_parts[0] == "delhi":
+        try:
+            row, column = map(int, legacy_parts[1:])
+        except ValueError:
+            row, column = -1, -1
+        if row in (0, 1) and column in (0, 1):
+            return DEFAULT_BBOX
+
+    parts = cell_id.split(":")
+    if len(parts) != 8 or parts[:2] != ["delhi", "v1"]:
+        raise ValueError(f"Invalid heatmap cell_id: {cell_id}")
+    try:
+        row, column = int(parts[2]), int(parts[3])
+        bounds = tuple(float(bound) for bound in parts[4:])
+        validated_bounds = BoundingBox(bounds=bounds).bounds
+    except (ValueError, TypeError) as exc:
+        raise ValueError(f"Invalid heatmap cell_id: {cell_id}") from exc
+    if row not in (0, 1) or column not in (0, 1):
+        raise ValueError(f"Invalid heatmap cell_id: {cell_id}")
+    return validated_bounds
+
+
 def _heatmap(bounds: tuple[float, float, float, float]) -> HeatmapResponse:
     min_lon, min_lat, max_lon, max_lat = bounds
     lon_step = (max_lon - min_lon) / 2
@@ -251,20 +300,10 @@ def _heatmap(bounds: tuple[float, float, float, float]) -> HeatmapResponse:
             center_lon = (west + east) / 2
             temp_c, wbgt_c = _mock_weather(center_lat, center_lon)
             risk = round(min(100, max(0, 40 + (temp_c - 33) * 8 + row * 3 + column * 2)), 1)
-            cell_id = f"delhi-{row}-{column}"
+            cell_id = _cell_id(row, column, bounds)
             features.append(
                 HeatCellFeature(
-                    geometry=PolygonGeometry(
-                        coordinates=[
-                            [
-                                (west, south),
-                                (east, south),
-                                (east, north),
-                                (west, north),
-                                (west, south),
-                            ]
-                        ]
-                    ),
+                    geometry=PointGeometry(coordinates=(center_lon, center_lat)),
                     properties=HeatCellProperties(
                         cell_id=cell_id,
                         risk=risk,
@@ -315,9 +354,10 @@ def get_risk(
     lon: Annotated[float, Query(ge=-180, le=180)],
     activity: Literal["walking", "commuting", "cycling", "running", "outdoor_work", "resting"],
     duration_min: Annotated[int, Query(ge=1, le=720)],
-    profile: Literal["general", "child", "older_adult", "outdoor_worker", "chronic_condition"] = "general",
+    profile: Literal["general", "child", "older_adult", "outdoor_worker", "chronic_condition", "worker"] = "general",
 ) -> RiskResponse:
-    score = _risk_value(lat, lon, activity, duration_min, profile)
+    risk_profile = "outdoor_worker" if profile == "worker" else profile
+    score = _risk_value(lat, lon, activity, duration_min, risk_profile)
     temp_c, wbgt_c = _mock_weather(lat, lon)
     factors = [f"Synthetic air temperature: {temp_c:.1f} C", f"Planned activity: {activity}"]
     if duration_min >= 60:
@@ -339,7 +379,9 @@ def get_risk(
 @app.get("/api/heatmap", response_model=HeatmapResponse, tags=["City planning"])
 def get_heatmap(
     bbox: Annotated[str, Query(description="min_lon,min_lat,max_lon,max_lat (WGS84)")],
-    ts: datetime | None = Query(default=None, description="Requested timestamp; defaults to current UTC time"),
+    ts: datetime | Literal["latest"] | None = Query(
+        default=None, description="Requested timestamp, or 'latest' for the current mock snapshot"
+    ),
 ) -> HeatmapResponse:
     _ = ts or datetime.now(UTC)
     return _heatmap(_parse_query_bbox(bbox).bounds)
@@ -349,7 +391,10 @@ def get_heatmap(
 def post_route(request: RouteRequest) -> RouteResponse:
     distance = _distance_m(request.origin, request.dest)
     midpoint = ((request.origin.lat + request.dest.lat) / 2, (request.origin.lon + request.dest.lon) / 2)
-    detour = Location(lat=midpoint[0] + 0.003, lon=midpoint[1] - 0.002)
+    detour = Location(
+        lat=max(-90, min(90, midpoint[0] + 0.003)),
+        lon=max(-180, min(180, midpoint[1] - 0.002)),
+    )
     fastest_duration = max(1.0, distance / 75)
     coolest_distance = _distance_m(request.origin, detour) + _distance_m(detour, request.dest)
     return RouteResponse(
@@ -404,6 +449,7 @@ def get_resources(
     return ResourcesResponse(resources=[item for item in candidates if item.distance_m <= radius_m])
 
 
+@app.post("/api/interventions/optimize", response_model=OptimizeResponse, tags=["City planning"], include_in_schema=False)
 @app.post("/api/optimize", response_model=OptimizeResponse, tags=["City planning"])
 def post_optimize(request: OptimizeRequest) -> OptimizeResponse:
     cells = _heatmap(tuple(request.bbox)).features
@@ -443,23 +489,58 @@ def post_optimize(request: OptimizeRequest) -> OptimizeResponse:
                 interventions=items,
             )
         )
+    by_type: dict[ResourceType, tuple[int, float]] = {}
+    for hotspot in ranked:
+        for item in hotspot.interventions:
+            units, cost = by_type.get(item.intervention, (0, 0.0))
+            by_type[item.intervention] = (units + item.units, cost + item.cost_inr)
+    intervention_names = {
+        ResourceType.SHADE: "Temporary shade points",
+        ResourceType.WATER: "Water refill stations",
+        ResourceType.COOLING: "Cooling centers",
+    }
     return OptimizeResponse(
         ranked_hotspots=ranked,
         total_cost_inr=total_cost,
         expected_risk_reduction=round(total_reduction, 1),
+        budget_inr=request.budget_inr,
+        people_reached=sum(
+            hotspot.population_exposed for hotspot in ranked if hotspot.interventions
+        ),
+        population_exposed=sum(hotspot.population_exposed for hotspot in ranked),
+        interventions=[
+            InterventionSummary(name=intervention_names[kind], locations=units, cost_inr=cost)
+            for kind, (units, cost) in by_type.items()
+        ],
     )
 
 
 @app.post("/api/simulate", response_model=HeatmapResponse, tags=["City planning"])
 def post_simulate(request: SimulateRequest) -> HeatmapResponse:
-    heatmap = _heatmap(DEFAULT_BBOX)
+    if not request.interventions:
+        return _heatmap(DEFAULT_BBOX)
+    try:
+        intervention_bounds = {_cell_bounds(item.cell_id) for item in request.interventions}
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if len(intervention_bounds) != 1:
+        raise HTTPException(status_code=422, detail="All simulation interventions must target the same bbox")
+    heatmap = _heatmap(next(iter(intervention_bounds)))
+    valid_cell_ids = {feature.properties.cell_id for feature in heatmap.features}
+    unknown_cell_ids = sorted(
+        {item.cell_id for item in request.interventions if item.cell_id not in valid_cell_ids}
+    )
+    if unknown_cell_ids:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unknown simulation cell_id(s): {', '.join(unknown_cell_ids)}",
+        )
     reductions: dict[str, float] = {}
     reduction_by_type = {ResourceType.WATER: 3.0, ResourceType.SHADE: 7.0, ResourceType.COOLING: 11.0}
     for intervention in request.interventions:
-        if intervention.cell_id:
-            reductions[intervention.cell_id] = reductions.get(intervention.cell_id, 0) + (
-                reduction_by_type[intervention.type] * intervention.units
-            )
+        reductions[intervention.cell_id] = reductions.get(intervention.cell_id, 0) + (
+            reduction_by_type[intervention.type] * intervention.units
+        )
     for feature in heatmap.features:
         properties = feature.properties
         properties.risk = round(max(0, properties.risk - reductions.get(properties.cell_id, 0)), 1)
