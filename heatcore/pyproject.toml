@@ -21,6 +21,11 @@ geospatial = [
     "shapely==2.2.0",
     "pyarrow==26.0.0",
     "osmnx==2.1.1",
+    "numpy>=1.24",
+    "planetary-computer==1.0.0",
+    "rasterio==1.5.2",
+    "pyproj==3.8.0",
+    "requests==2.32.5",
 ]
 optimization = [
     "pulp==4.0.1",
@@ -31,5 +36,5 @@ test = [
 ]
 
 [tool.setuptools]
-packages = ["heatcore"]
+packages = ["heatcore", "heatcore.data"]
 package-dir = { heatcore = "." }
