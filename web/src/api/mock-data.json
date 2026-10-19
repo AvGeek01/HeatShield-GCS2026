@@ -1,0 +1,142 @@
+{
+  "risk": {
+    "risk_score": 78,
+    "level": "high",
+    "wbgt_c": 32.4,
+    "factors": [
+      "High afternoon temperature",
+      "Limited shade",
+      "Longer outdoor exposure increases the mock score"
+    ],
+    "actions": [
+      "Take a water break before your next shift.",
+      "Plan the heaviest work before 11 AM.",
+      "Rest in shade for 10 minutes every hour."
+    ]
+  },
+  "heatmap": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": { "type": "Point", "coordinates": [77.0475, 28.715] },
+        "properties": { "cell_id": "delhi:v1:0:0:77.02:28.69:77.13:28.79", "risk": 88, "temp_c": 39.1, "wbgt_c": 33.2, "population_exposed": 450 }
+      },
+      {
+        "type": "Feature",
+        "geometry": { "type": "Point", "coordinates": [77.1025, 28.715] },
+        "properties": { "cell_id": "delhi:v1:0:1:77.02:28.69:77.13:28.79", "risk": 72, "temp_c": 38.4, "wbgt_c": 31.8, "population_exposed": 620 }
+      },
+      {
+        "type": "Feature",
+        "geometry": { "type": "Point", "coordinates": [77.0475, 28.765] },
+        "properties": { "cell_id": "delhi:v1:1:0:77.02:28.69:77.13:28.79", "risk": 57, "temp_c": 37.6, "wbgt_c": 30.4, "population_exposed": 690 }
+      },
+      {
+        "type": "Feature",
+        "geometry": { "type": "Point", "coordinates": [77.1025, 28.765] },
+        "properties": { "cell_id": "delhi:v1:1:1:77.02:28.69:77.13:28.79", "risk": 81, "temp_c": 39, "wbgt_c": 32.7, "population_exposed": 860 }
+      }
+    ]
+  },
+  "route": {
+    "fastest": {
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[77.081, 28.743], [77.112, 28.747]]
+      },
+      "duration_min": 18.4,
+      "exposure": 76
+    },
+    "coolest": {
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[77.081, 28.743], [77.093, 28.754], [77.112, 28.747]]
+      },
+      "duration_min": 22.8,
+      "exposure": 41
+    }
+  },
+  "resources": [
+    {
+      "resource_id": "water-rohini-01",
+      "type": "water",
+      "name": "Rohini Community Water Point",
+      "location": { "lat": 28.751, "lon": 77.116 },
+      "distance_m": 0,
+      "availability": "open"
+    },
+    {
+      "resource_id": "water-rohini-02",
+      "type": "water",
+      "name": "Sector 16 Refill Station",
+      "location": { "lat": 28.735, "lon": 77.092 },
+      "distance_m": 0,
+      "availability": "limited"
+    },
+    {
+      "resource_id": "shade-rohini-01",
+      "type": "shade",
+      "name": "District Park Shade Pavilion",
+      "location": { "lat": 28.748, "lon": 77.099 },
+      "distance_m": 0,
+      "availability": "open"
+    },
+    {
+      "resource_id": "cooling-rohini-01",
+      "type": "cooling",
+      "name": "Rohini Cooling Centre",
+      "location": { "lat": 28.739, "lon": 77.078 },
+      "distance_m": 0,
+      "availability": "unknown"
+    }
+  ],
+  "optimize": {
+    "ranked_hotspots": [
+      {
+        "rank": 1,
+        "cell_id": "delhi:v1:0:0:77.02:28.69:77.13:28.79",
+        "risk": 88,
+        "population_exposed": 1480,
+        "interventions": [
+          { "intervention": "shade", "units": 1, "cost_inr": 42000, "expected_risk_reduction": 15 }
+        ]
+      },
+      {
+        "rank": 2,
+        "cell_id": "delhi:v1:1:1:77.02:28.69:77.13:28.79",
+        "risk": 81,
+        "population_exposed": 1140,
+        "interventions": [
+          { "intervention": "shade", "units": 1, "cost_inr": 42000, "expected_risk_reduction": 14.6 }
+        ]
+      },
+      {
+        "rank": 3,
+        "cell_id": "delhi:v1:0:1:77.02:28.69:77.13:28.79",
+        "risk": 72,
+        "population_exposed": 920,
+        "interventions": [
+          { "intervention": "shade", "units": 1, "cost_inr": 42000, "expected_risk_reduction": 13 }
+        ]
+      },
+      {
+        "rank": 4,
+        "cell_id": "delhi:v1:1:0:77.02:28.69:77.13:28.79",
+        "risk": 57,
+        "population_exposed": 690,
+        "interventions": [
+          { "intervention": "shade", "units": 1, "cost_inr": 42000, "expected_risk_reduction": 10.3 }
+        ]
+      }
+    ],
+    "total_cost_inr": 168000,
+    "expected_risk_reduction": 52.9,
+    "budget_inr": 250000,
+    "people_reached": 2620,
+    "population_exposed": 2620,
+    "interventions": [
+      { "name": "Temporary shade points", "locations": 4, "cost_inr": 168000 }
+    ]
+  }
+}

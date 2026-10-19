@@ -5,15 +5,28 @@ import type { FeatureCollection, Point } from 'geojson'
 import {
   getHeatmap,
   getInterventionPlan,
+  getResources,
   getRiskAssessment,
   isMockMode,
+  postRoute,
+  simulateInterventions,
 } from './api/client'
-import type { HeatmapProperties, InterventionPlan, RiskAssessment } from './api/types'
+import type {
+  BBox,
+  HeatmapProperties,
+  HeatmapResponse,
+  InterventionPlan,
+  Resource,
+  ResourceType,
+  ResourcesResponse,
+  RiskAssessment,
+  RouteResponse,
+} from './api/types'
 import './App.css'
 
 function Brand() {
   return (
-    <NavLink className="brand" to="/app" aria-label="HeatShield home">
+    <NavLink className="brand" to="/risk" aria-label="HeatShield home">
       <span className="brand-mark" aria-hidden="true">
         H
       </span>
@@ -36,12 +49,12 @@ function AppHeader() {
     <header className="topbar">
       <Brand />
       <nav className="primary-nav" aria-label="Choose workspace">
-        <NavLink to="/app" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-          For workers
-        </NavLink>
-        <NavLink to="/city" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-          For cities
-        </NavLink>
+        <NavLink to="/risk" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>Risk Card</NavLink>
+        <NavLink to="/route" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>Heat-Safe Route</NavLink>
+        <NavLink to="/resources" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>Resources Map</NavLink>
+        <NavLink to="/city" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>City Heatmap</NavLink>
+        <NavLink to="/optimizer" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>Optimizer</NavLink>
+        <NavLink to="/simulator" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>Simulator</NavLink>
       </nav>
       <div className="topbar-actions">
         {isMockMode && <span className="mode-pill"><span /> Demo data</span>}
@@ -347,7 +360,7 @@ function CityApp() {
             {!plan && <p className="loading-copy">Finding the highest-impact mix…</p>}
           </div>
           <div className="optimizer-summary"><span>Estimated people reached</span><strong>{plan ? plan.people_reached.toLocaleString('en-IN') : '—'}</strong></div>
-          <button className="primary-button" type="button">Review recommendations <span aria-hidden="true">→</span></button>
+          <NavLink className="primary-button" to="/optimizer">Review recommendations <span aria-hidden="true">→</span></NavLink>
           <p className="optimizer-footnote">Suggestions are planning support; confirm needs on the ground.</p>
         </article>
       </section>
@@ -356,13 +369,295 @@ function CityApp() {
   )
 }
 
+const DEFAULT_BOUNDS: BBox = [77.02, 28.69, 77.13, 28.79]
+const RESOURCE_TYPES: ResourceType[] = ['water', 'shade', 'cooling']
+
+function RoutePage() {
+  const [route, setRoute] = useState<RouteResponse | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [requestNumber, setRequestNumber] = useState(0)
+
+  useEffect(() => {
+    let current = true
+    postRoute()
+      .then((result) => { if (current) setRoute(result) })
+      .catch((reason: unknown) => {
+        if (current) setError(reason instanceof Error ? reason.message : 'Unexpected response from the route service.')
+      })
+    return () => { current = false }
+  }, [requestNumber])
+
+  return (
+    <PageFrame>
+      <PageIntro eyebrow="PERSONAL SAFETY / ROHINI" title={<>Take the <em>cooler way.</em></>} description="Compare the quickest trip with a lower-heat route for your journey." />
+      {error && <ErrorBanner message={error} />}
+      <section className="route-cards" aria-label="Route comparisons">
+        {(['fastest', 'coolest'] as const).map((kind) => {
+          const option = route?.[kind]
+          return (
+            <article className={`panel route-card route-${kind}`} key={kind}>
+              <span className="card-kicker">{kind === 'fastest' ? 'QUICKEST OPTION' : 'LOWER HEAT OPTION'}</span>
+              <h2>{kind === 'fastest' ? 'Fastest route' : 'Coolest route'}</h2>
+              <div className="route-metrics">
+                <Metric label="Travel time" value={option ? option.duration_min.toFixed(1) : '—'} unit=" min" />
+                <Metric label="Heat exposure" value={option ? option.exposure.toFixed(0) : '—'} unit=" / 100" tone={kind === 'fastest' ? 'hot' : 'neutral'} />
+              </div>
+              <p className="route-description">
+                {option
+                  ? `${option.geometry.coordinates.length} waypoints · ${kind === 'coolest' ? 'Lower estimated exposure, with a small detour.' : 'Direct path to your destination.'}`
+                  : 'Loading route options…'}
+              </p>
+            </article>
+          )
+        })}
+      </section>
+      <section className="panel route-note">
+        <span className="route-start">DTU · ROHINI</span><span className="route-line" aria-hidden="true" /><span className="route-end">SECTOR 16</span>
+        <p>Route estimates use the Delhi pilot forecast. Choose the cooler option when conditions feel unsafe.</p>
+      </section>
+      <button className="primary-button page-action" type="button" onClick={() => { setError(null); setRequestNumber((value) => value + 1) }}>
+        Refresh route options <span aria-hidden="true">↻</span>
+      </button>
+    </PageFrame>
+  )
+}
+
+function ResourcesPage() {
+  const [type, setType] = useState<ResourceType>('water')
+  const [result, setResult] = useState<ResourcesResponse | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let current = true
+    getResources({ type, lat: 28.743, lon: 77.081, radius_m: 5_000 })
+      .then((response) => { if (current) setResult(response) })
+      .catch((reason: unknown) => {
+        if (current) setError(reason instanceof Error ? reason.message : 'Unexpected response from the resources service.')
+      })
+    return () => { current = false }
+  }, [type])
+
+  const resources = result?.resources ?? []
+
+  return (
+    <PageFrame>
+      <PageIntro eyebrow="LOCAL SUPPORT / ROHINI" title={<>Find a place to <em>cool down.</em></>} description="Nearby water, shade, and cooling resources around the DTU and Rohini pilot area." />
+      {error && <ErrorBanner message={error} />}
+      <section className="resource-toolbar" aria-label="Filter resources">
+        <div className="resource-tabs">
+          {RESOURCE_TYPES.map((item) => (
+            <button key={item} className={`resource-tab${type === item ? ' selected' : ''}`} type="button" onClick={() => { setError(null); setResult(null); setType(item) }}>
+              {resourceLabel(item)}
+            </button>
+          ))}
+        </div>
+        <span className="radius-label">Within 5 km of DTU</span>
+      </section>
+      <section className="resource-layout">
+        <article className="panel resource-map-panel">
+          <div className="resource-map-art" role="img" aria-label={`Map preview of ${resourceLabel(type).toLowerCase()} resources in Rohini`}>
+            <span className="map-road map-road-one" /><span className="map-road map-road-two" /><span className="map-road map-road-three" />
+            <span className="map-area-label">ROHINI · DELHI</span>
+            <span className="map-origin" title="DTU pilot area">DTU</span>
+            {resources.map((resource, index) => <span key={resource.resource_id} className={`resource-pin pin-${index % 4}`} title={resource.name}>●</span>)}
+          </div>
+          <p className="map-caption">Illustrative pilot-area map · resource availability can change</p>
+        </article>
+        <section className="resource-list" aria-label="Nearby resources">
+          <div className="section-heading"><div><span className="card-kicker">NEAR YOU</span><h2>{result ? resources.length : '…'} {resourceLabel(type).toLowerCase()} points</h2></div></div>
+          {result && resources.length === 0 && <p className="empty-state">No {resourceLabel(type).toLowerCase()} resources were found within this radius.</p>}
+          {resources.map((resource) => <ResourceCard key={resource.resource_id} resource={resource} />)}
+          {!result && !error && <p className="loading-copy">Loading nearby resources…</p>}
+        </section>
+      </section>
+    </PageFrame>
+  )
+}
+
+function OptimizerPage() {
+  const [budget, setBudget] = useState(250_000)
+  const [plan, setPlan] = useState<InterventionPlan | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [runNumber, setRunNumber] = useState(0)
+
+  useEffect(() => {
+    let current = true
+    getInterventionPlan({ budget_inr: budget, bbox: DEFAULT_BOUNDS })
+      .then((result) => { if (current) setPlan(result) })
+      .catch((reason: unknown) => {
+        if (current) setError(reason instanceof Error ? reason.message : 'Unexpected response from the optimizer service.')
+      })
+      .finally(() => { if (current) setLoading(false) })
+    return () => { current = false }
+  }, [budget, runNumber])
+
+  return (
+    <PageFrame>
+      <PageIntro eyebrow="CITY OPERATIONS / BUDGET PLANNING" title={<>Put every rupee <em>to work.</em></>} description="Rank heat hotspots and explore an intervention mix for the available budget." />
+      {error && <ErrorBanner message={error} />}
+      <section className="optimizer-page-grid">
+        <article className="panel budget-panel">
+          <span className="card-kicker">PLANNING INPUT</span>
+          <label htmlFor="budget-inr">Available budget (INR)</label>
+          <input id="budget-inr" type="number" min="1" max="1000000000" step="10000" value={budget} onChange={(event) => { setError(null); setLoading(true); setBudget(Math.max(1, Number(event.target.value))) }} />
+          <input aria-label="Budget slider" type="range" min="50000" max="1000000" step="10000" value={Math.min(1_000_000, Math.max(50_000, budget))} onChange={(event) => { setError(null); setLoading(true); setBudget(Number(event.target.value)) }} />
+          <p>Recommendations prioritize population exposure and estimated heat-risk reduction across Rohini.</p>
+          <button className="primary-button" type="button" onClick={() => { setError(null); setLoading(true); setRunNumber((value) => value + 1) }} disabled={loading}>
+            {loading ? 'Optimizing…' : 'Recalculate plan'} <span aria-hidden="true">→</span>
+          </button>
+        </article>
+        <article className="panel optimizer-results">
+          <div className="panel-heading"><div><span className="card-kicker">RECOMMENDED MIX</span><h2>Interventions with impact</h2></div><span className="spark-icon" aria-hidden="true">✳</span></div>
+          {plan ? (
+            <>
+              <div className="optimizer-summary"><span>Estimated people reached</span><strong>{plan.people_reached.toLocaleString('en-IN')}</strong></div>
+              <div className="optimizer-summary"><span>Expected risk reduction</span><strong>{plan.expected_risk_reduction.toFixed(1)} pts</strong></div>
+              <div className="intervention-list">
+                {plan.interventions.map((item) => (
+                  <div className="intervention-item" key={item.name}>
+                    <span className="intervention-dot" /><span className="intervention-name">{item.name}<small>{item.locations} locations</small></span>
+                    <strong>₹{item.cost_inr.toLocaleString('en-IN')}</strong>
+                  </div>
+                ))}
+              </div>
+              <p className="optimizer-footnote">Planned spend: ₹{plan.total_cost_inr.toLocaleString('en-IN')} of ₹{plan.budget_inr.toLocaleString('en-IN')}</p>
+            </>
+          ) : <p className="loading-copy">{loading ? 'Finding the highest-impact mix…' : 'No recommendations available.'}</p>}
+        </article>
+      </section>
+      <section className="panel hotspot-table">
+        <div className="panel-heading"><div><span className="card-kicker">RANKED HOTSPOTS</span><h2>Priority locations</h2></div></div>
+        {plan?.ranked_hotspots.map((hotspot) => (
+          <div className="hotspot-row" key={hotspot.cell_id}>
+            <span className="hotspot-rank">#{hotspot.rank}</span><strong>{hotspot.cell_id}</strong>
+            <span>Risk {hotspot.risk.toFixed(0)}</span><span>{hotspot.population_exposed.toLocaleString('en-IN')} exposed</span>
+            <span>{hotspot.interventions.map((item) => `${item.units} × ${resourceLabel(item.intervention)}`).join(', ') || 'No action within budget'}</span>
+          </div>
+        ))}
+      </section>
+    </PageFrame>
+  )
+}
+
+function SimulatorPage() {
+  const [baseline, setBaseline] = useState<HeatmapResponse | null>(null)
+  const [simulation, setSimulation] = useState<HeatmapResponse | null>(null)
+  const [cellId, setCellId] = useState('cell-0-0')
+  const [type, setType] = useState<ResourceType>('shade')
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let current = true
+    getHeatmap(DEFAULT_BOUNDS)
+      .then((result) => {
+        if (current) {
+          setBaseline(result)
+          setCellId(result.features[0]?.properties.cell_id ?? '')
+        }
+      })
+      .catch((reason: unknown) => {
+        if (current) setError(reason instanceof Error ? reason.message : 'Unexpected response from the heatmap service.')
+      })
+      .finally(() => { if (current) setLoading(false) })
+    return () => { current = false }
+  }, [])
+
+  async function runSimulation() {
+    setError(null)
+    setLoading(true)
+    try {
+      const result = await simulateInterventions({ interventions: [{ cell_id: cellId, type, units: 1 }] })
+      setSimulation(result)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Unexpected response from the simulation service.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const selectedBaseline = baseline?.features.find((feature) => feature.properties.cell_id === cellId)
+  const selectedSimulation = simulation?.features.find((feature) => feature.properties.cell_id === cellId)
+
+  return (
+    <PageFrame>
+      <PageIntro eyebrow="CITY OPERATIONS / WHAT-IF" title={<>Test a cooler <em>tomorrow.</em></>} description="Preview how a proposed intervention could change heat-risk estimates at a priority hotspot." />
+      {error && <ErrorBanner message={error} />}
+      <section className="simulator-grid">
+        <article className="panel simulation-controls">
+          <span className="card-kicker">SCENARIO INPUT</span>
+          <label htmlFor="sim-cell">Hotspot</label>
+          <select id="sim-cell" value={cellId} onChange={(event) => { setCellId(event.target.value); setSimulation(null) }}>
+            {(baseline?.features ?? []).map((feature) => (
+              <option key={feature.properties.cell_id} value={feature.properties.cell_id}>{feature.properties.cell_id} · risk {feature.properties.risk}</option>
+            ))}
+          </select>
+          <label htmlFor="sim-type">Intervention</label>
+          <select id="sim-type" value={type} onChange={(event) => { setType(event.target.value as ResourceType); setSimulation(null) }}>
+            {RESOURCE_TYPES.map((item) => <option key={item} value={item}>{resourceLabel(item)}</option>)}
+          </select>
+          <button className="primary-button" type="button" onClick={runSimulation} disabled={loading || !cellId}>
+            {loading ? 'Calculating…' : 'Run simulation'} <span aria-hidden="true">→</span>
+          </button>
+        </article>
+        <article className="panel simulation-results">
+          <div className="panel-heading"><div><span className="card-kicker">RISK SCORE COMPARISON</span><h2>{simulation ? 'Scenario outcome' : 'Baseline conditions'}</h2></div></div>
+          <div className="simulation-score-row">
+            <Metric label="Before" value={selectedBaseline ? selectedBaseline.properties.risk.toFixed(0) : loading ? '…' : '—'} unit=" / 100" tone="hot" />
+            <span className="simulation-arrow" aria-hidden="true">→</span>
+            <Metric label="After" value={selectedSimulation ? selectedSimulation.properties.risk.toFixed(0) : '—'} unit=" / 100" tone="neutral" />
+          </div>
+          {selectedSimulation && selectedBaseline && (
+            <p className="simulation-change">Estimated reduction: {(selectedBaseline.properties.risk - selectedSimulation.properties.risk).toFixed(1)} risk points · WBGT {selectedBaseline.properties.wbgt_c}°C → {selectedSimulation.properties.wbgt_c}°C</p>
+          )}
+          {baseline && <HeatMap data={simulation ?? baseline} />}
+        </article>
+      </section>
+    </PageFrame>
+  )
+}
+
+function PageIntro({ eyebrow, title, description }: { eyebrow: string; title: ReactNode; description: string }) {
+  return (
+    <section className="page-intro">
+      <div className="eyebrow"><span className="live-dot" /> {eyebrow}</div>
+      <h1>{title}</h1>
+      <p className="lede">{description}</p>
+    </section>
+  )
+}
+
+function ErrorBanner({ message }: { message: string }) {
+  return <p className="error-banner" role="alert">Could not load data: {message}</p>
+}
+
+function resourceLabel(type: ResourceType): string {
+  return type === 'water' ? 'Water' : type === 'shade' ? 'Shade' : 'Cooling'
+}
+
+function ResourceCard({ resource }: { resource: Resource }) {
+  return (
+    <article className="resource-card panel">
+      <span className={`resource-symbol resource-${resource.type}`} aria-hidden="true">{resource.type === 'water' ? '↟' : resource.type === 'shade' ? '⌂' : '✳'}</span>
+      <div><h3>{resource.name}</h3><p>{(resource.distance_m / 1000).toFixed(1)} km away <span>·</span> {resource.availability}</p></div>
+      <span className={`availability availability-${resource.availability}`}>{resource.availability}</span>
+    </article>
+  )
+}
+
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/app" replace />} />
+      <Route path="/" element={<Navigate to="/risk" replace />} />
+      <Route path="/risk" element={<WorkerApp />} />
       <Route path="/app" element={<WorkerApp />} />
+      <Route path="/route" element={<RoutePage />} />
+      <Route path="/resources" element={<ResourcesPage />} />
       <Route path="/city" element={<CityApp />} />
-      <Route path="*" element={<Navigate to="/app" replace />} />
+      <Route path="/optimizer" element={<OptimizerPage />} />
+      <Route path="/simulator" element={<SimulatorPage />} />
+      <Route path="*" element={<Navigate to="/risk" replace />} />
     </Routes>
   )
 }
