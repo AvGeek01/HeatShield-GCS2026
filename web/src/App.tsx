@@ -57,7 +57,9 @@ function AppHeader() {
         <NavLink to="/simulator" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>Simulator</NavLink>
       </nav>
       <div className="topbar-actions">
-        {isMockMode && <span className="mode-pill"><span /> Demo data</span>}
+        <span className={`mode-pill ${isMockMode ? 'mode-mock' : 'mode-live'}`}>
+          <span />{isMockMode ? 'Mock data' : 'Live API'}
+        </span>
         <button
           className="icon-button theme-toggle"
           type="button"
@@ -103,6 +105,7 @@ function Metric({ label, value, unit, tone = 'neutral' }: {
 function WorkerApp() {
   const [assessment, setAssessment] = useState<RiskAssessment | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [requestNumber, setRequestNumber] = useState(0)
 
   useEffect(() => {
     let current = true
@@ -110,7 +113,7 @@ function WorkerApp() {
       .then((result) => { if (current) setAssessment(result) })
       .catch((reason: Error) => { if (current) setError(reason.message) })
     return () => { current = false }
-  }, [])
+  }, [requestNumber])
 
   return (
     <PageFrame>
@@ -125,7 +128,16 @@ function WorkerApp() {
             <span className="weather-chip"><span aria-hidden="true">☀</span> Mostly sunny <b>38°</b></span>
           </div>
 
-          {error && <p className="error-banner" role="alert">Could not load today’s heat check: {error}</p>}
+          {error && (
+            <ErrorBanner
+              message={`today’s heat check: ${error}`}
+              onRetry={() => {
+                setAssessment(null)
+                setError(null)
+                setRequestNumber((value) => value + 1)
+              }}
+            />
+          )}
           <section className="risk-card" aria-label="Your heat risk">
             <div className="risk-card-top">
               <div>
@@ -300,7 +312,16 @@ function CityApp() {
         </div>
         <button className="date-button" type="button"><span aria-hidden="true">▦</span> Today, 18 Oct <span aria-hidden="true">⌄</span></button>
       </section>
-      {planError && <p className="error-banner" role="alert">Could not load intervention recommendations: {planError}</p>}
+      {planError && (
+        <ErrorBanner
+          message={`intervention recommendations: ${planError}`}
+          onRetry={() => {
+            setPlan(null)
+            setPlanError(null)
+            setHeatmapRequest((request) => request + 1)
+          }}
+        />
+      )}
       <section className="city-metrics" aria-label="City heat metrics">
         <Metric label="People at high risk" value={plan ? plan.population_exposed.toLocaleString('en-IN') : '—'} tone="hot" />
         <Metric label="Priority hotspots" value={heatmap ? String(heatmap.features.filter((feature) => feature.properties.risk >= 65).length).padStart(2, '0') : '—'} tone="warm" />
@@ -327,6 +348,7 @@ function CityApp() {
                         className="map-retry-button"
                         onClick={() => {
                           setHeatmapError(null)
+                          setPlanError(null)
                           setHeatmapLoading(true)
                           setHeatmapRequest((request) => request + 1)
                         }}
@@ -390,7 +412,16 @@ function RoutePage() {
   return (
     <PageFrame>
       <PageIntro eyebrow="PERSONAL SAFETY / ROHINI" title={<>Take the <em>cooler way.</em></>} description="Compare the quickest trip with a lower-heat route for your journey." />
-      {error && <ErrorBanner message={error} />}
+      {error && (
+        <ErrorBanner
+          message={error}
+          onRetry={() => {
+            setRoute(null)
+            setError(null)
+            setRequestNumber((value) => value + 1)
+          }}
+        />
+      )}
       <section className="route-cards" aria-label="Route comparisons">
         {(['fastest', 'coolest'] as const).map((kind) => {
           const option = route?.[kind]
@@ -426,6 +457,7 @@ function ResourcesPage() {
   const [type, setType] = useState<ResourceType>('water')
   const [result, setResult] = useState<ResourcesResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [requestNumber, setRequestNumber] = useState(0)
 
   useEffect(() => {
     let current = true
@@ -435,14 +467,23 @@ function ResourcesPage() {
         if (current) setError(reason instanceof Error ? reason.message : 'Unexpected response from the resources service.')
       })
     return () => { current = false }
-  }, [type])
+  }, [type, requestNumber])
 
   const resources = result?.resources ?? []
 
   return (
     <PageFrame>
       <PageIntro eyebrow="LOCAL SUPPORT / ROHINI" title={<>Find a place to <em>cool down.</em></>} description="Nearby water, shade, and cooling resources around the DTU and Rohini pilot area." />
-      {error && <ErrorBanner message={error} />}
+      {error && (
+        <ErrorBanner
+          message={error}
+          onRetry={() => {
+            setResult(null)
+            setError(null)
+            setRequestNumber((value) => value + 1)
+          }}
+        />
+      )}
       <section className="resource-toolbar" aria-label="Filter resources">
         <div className="resource-tabs">
           {RESOURCE_TYPES.map((item) => (
@@ -495,7 +536,17 @@ function OptimizerPage() {
   return (
     <PageFrame>
       <PageIntro eyebrow="CITY OPERATIONS / BUDGET PLANNING" title={<>Put every rupee <em>to work.</em></>} description="Rank heat hotspots and explore an intervention mix for the available budget." />
-      {error && <ErrorBanner message={error} />}
+      {error && (
+        <ErrorBanner
+          message={error}
+          onRetry={() => {
+            setPlan(null)
+            setError(null)
+            setLoading(true)
+            setRunNumber((value) => value + 1)
+          }}
+        />
+      )}
       <section className="optimizer-page-grid">
         <article className="panel budget-panel">
           <span className="card-kicker">PLANNING INPUT</span>
@@ -547,6 +598,7 @@ function SimulatorPage() {
   const [type, setType] = useState<ResourceType>('shade')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [baselineRequest, setBaselineRequest] = useState(0)
 
   useEffect(() => {
     let current = true
@@ -562,7 +614,7 @@ function SimulatorPage() {
       })
       .finally(() => { if (current) setLoading(false) })
     return () => { current = false }
-  }, [])
+  }, [baselineRequest])
 
   async function runSimulation() {
     setError(null)
@@ -577,13 +629,24 @@ function SimulatorPage() {
     }
   }
 
+  function retry() {
+    setError(null)
+    if (baseline) {
+      setSimulation(null)
+      void runSimulation()
+      return
+    }
+    setLoading(true)
+    setBaselineRequest((value) => value + 1)
+  }
+
   const selectedBaseline = baseline?.features.find((feature) => feature.properties.cell_id === cellId)
   const selectedSimulation = simulation?.features.find((feature) => feature.properties.cell_id === cellId)
 
   return (
     <PageFrame>
       <PageIntro eyebrow="CITY OPERATIONS / WHAT-IF" title={<>Test a cooler <em>tomorrow.</em></>} description="Preview how a proposed intervention could change heat-risk estimates at a priority hotspot." />
-      {error && <ErrorBanner message={error} />}
+      {error && <ErrorBanner message={error} onRetry={retry} />}
       <section className="simulator-grid">
         <article className="panel simulation-controls">
           <span className="card-kicker">SCENARIO INPUT</span>
@@ -628,8 +691,13 @@ function PageIntro({ eyebrow, title, description }: { eyebrow: string; title: Re
   )
 }
 
-function ErrorBanner({ message }: { message: string }) {
-  return <p className="error-banner" role="alert">Could not load data: {message}</p>
+function ErrorBanner({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="error-banner" role="alert">
+      <span>Could not load data: {message}</span>
+      <button className="error-retry" type="button" onClick={onRetry}>Try again</button>
+    </div>
+  )
 }
 
 function resourceLabel(type: ResourceType): string {

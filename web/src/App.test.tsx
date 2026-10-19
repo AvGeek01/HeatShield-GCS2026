@@ -1,6 +1,7 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
+import { getRiskAssessment } from './api/client'
 import {
   getMockSimulation,
   mockHeatmap,
@@ -53,6 +54,18 @@ describe('HeatShield routes', () => {
     expect(screen.getByRole('heading', { name: /make today a safer day/i })).toBeInTheDocument()
     await waitFor(() => expect(screen.getByText('High risk')).toBeInTheDocument())
     expect(screen.getByText('Take a water break before your next shift.')).toBeInTheDocument()
+    expect(screen.getByText('Mock data')).toBeInTheDocument()
+  })
+
+  it('shows a visible API error and retries the request', async () => {
+    window.history.replaceState({}, '', '/risk')
+    vi.mocked(getRiskAssessment).mockRejectedValueOnce(new Error('API unavailable'))
+    render(<App />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('API unavailable')
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+
+    expect(await screen.findByText('High risk')).toBeInTheDocument()
   })
 
   it('renders the city dashboard at /city', async () => {
@@ -95,5 +108,21 @@ describe('HeatShield routes', () => {
     expect(await screen.findByRole('heading', { name: /test a cooler tomorrow/i })).toBeInTheDocument()
     screen.getByRole('button', { name: /run simulation/i }).click()
     expect(await screen.findByText(/estimated reduction: 10.0 risk points/i)).toBeInTheDocument()
+  })
+
+  it.each([
+    ['Risk Card', /make today a safer day/i],
+    ['Heat-Safe Route', /take the cooler way/i],
+    ['Resources Map', /find a place to cool down/i],
+    ['City Heatmap', /see where heat hits hardest/i],
+    ['Optimizer', /put every rupee to work/i],
+    ['Simulator', /test a cooler tomorrow/i],
+  ])('opens the %s page when its nav tab is clicked', async (label, heading) => {
+    window.history.replaceState({}, '', '/simulator')
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('link', { name: label }))
+
+    expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument()
   })
 })
