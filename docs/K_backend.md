@@ -30,9 +30,23 @@ After copying the example environment file and setting a local
 docker compose --env-file backend\.env -f backend\docker-compose.yml up --build
 ```
 
-The PostGIS database is provisioned for the next persistence step. Current API
-endpoints deliberately return deterministic mock data and do not write readings
-to the database.
+The API container runs `alembic upgrade head` before starting. The initial
+migration enables PostGIS and creates the node, reading, resource, grid-cell,
+intervention, and anonymous pilot-survey tables. It adds GiST indexes for the
+four geometry columns. API endpoints still deliberately return deterministic
+mock data and do not write readings to the database.
+
+To inspect or apply migrations manually from the repository root:
+
+```powershell
+docker compose --env-file backend\.env -f backend\docker-compose.yml run --rm api alembic current
+docker compose --env-file backend\.env -f backend\docker-compose.yml run --rm api alembic upgrade head
+```
+
+The `pilot_surveys` table stores only consented categorical responses and an
+optional grid-cell reference; do not add names, contact details, exact personal
+locations, raw interview text, or survey exports to this database. Keep secrets
+in `backend/.env`, which must not be committed.
 
 ## Tests
 
