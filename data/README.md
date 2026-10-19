@@ -6,7 +6,7 @@ install the geospatial dependencies, and run:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[geospatial,test]"
+python -m pip install -e "heatcore[geospatial,test]"
 python .\data\download_pilot.py
 python -m heatcore.data.verify
 ```
