@@ -100,7 +100,6 @@ export function getMockSimulation({ interventions }: SimulateRequest): HeatmapRe
         properties: {
           ...feature.properties,
           risk,
-          wbgt_c: Math.max(20, Number((feature.properties.wbgt_c - reduction * 0.08).toFixed(1))),
         },
       }
     }),

@@ -108,6 +108,7 @@ describe('HeatShield routes', () => {
     expect(await screen.findByRole('heading', { name: /test a cooler tomorrow/i })).toBeInTheDocument()
     screen.getByRole('button', { name: /run simulation/i }).click()
     expect(await screen.findByText(/estimated reduction: 10.0 risk points/i)).toBeInTheDocument()
+    expect(screen.getByText(/WBGT 33.2°C → 33.2°C/i)).toBeInTheDocument()
   })
 
   it.each([
