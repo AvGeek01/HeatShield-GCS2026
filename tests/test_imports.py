@@ -48,13 +48,12 @@ def test_scaffold_functions_raise_not_implemented() -> None:
             profile="default",
             weather={},
         )
-    with pytest.raises(NotImplementedError):
-        wbgt.calculate_wbgt(
-            temp_c=35.0,
-            relative_humidity_pct=50.0,
-            wind_speed_m_s=1.0,
-            solar_radiation_w_m2=500.0,
-        )
+    assert wbgt.calculate_wbgt(
+        temp_c=35.0,
+        relative_humidity_pct=50.0,
+        wind_speed_m_s=1.0,
+        solar_radiation_w_m2=500.0,
+    ) > 0.0
     with pytest.raises(NotImplementedError):
         model.predict_risk({})
     with pytest.raises(NotImplementedError):
