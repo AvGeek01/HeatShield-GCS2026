@@ -1700,3 +1700,434 @@ h1 {
     grid-template-columns: minmax(230px, 0.7fr) minmax(0, 1.3fr);
   }
 }
+
+.worker-layout {
+  max-width: 760px;
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0 auto;
+}
+
+.worker-heading {
+  margin-bottom: 22px;
+}
+
+.risk-card {
+  padding: 25px;
+  border-radius: 20px;
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--heat-red) 8%, transparent);
+}
+
+.risk-card h2 {
+  margin-top: 8px;
+  font-size: clamp(24px, 4vw, 30px);
+  letter-spacing: -1px;
+  text-transform: none;
+}
+
+.risk-gauge {
+  min-width: 78px;
+  padding: 8px 12px;
+  border-radius: 12px;
+}
+
+.risk-gauge strong {
+  font-size: 30px;
+  line-height: 1;
+}
+
+.risk-scale {
+  margin: 20px 0 18px;
+}
+
+.risk-facts {
+  padding-top: 15px;
+}
+
+.heat-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--heat-red) 21%, var(--line));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--heat-red) 7%, var(--surface));
+}
+
+.heat-alert-icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--heat-red);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.heat-alert .card-kicker,
+.route-copy .card-kicker {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--heat-red);
+}
+
+.heat-alert strong {
+  display: block;
+  color: var(--ink);
+  font-size: 15px;
+  letter-spacing: -0.2px;
+}
+
+.heat-alert p {
+  margin: 4px 0 0;
+  color: var(--ink-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.nearby-section {
+  margin-top: 23px;
+}
+
+.nearby-section .section-heading {
+  margin-bottom: 12px;
+}
+
+.nearby-section .section-heading h2 {
+  font-size: 18px;
+}
+
+.text-link {
+  color: var(--heat-dark);
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.nearby-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.nearby-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface);
+}
+
+.nearby-icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  margin-bottom: 9px;
+  border-radius: 9px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.nearby-icon-shade {
+  background: color-mix(in srgb, var(--heat-green) 12%, var(--surface));
+  color: var(--heat-green);
+}
+
+.nearby-icon-water {
+  background: color-mix(in srgb, #4d86ad 13%, var(--surface));
+  color: #4d86ad;
+}
+
+.nearby-icon-cooling {
+  background: color-mix(in srgb, #7569a9 13%, var(--surface));
+  color: #7569a9;
+}
+
+.nearby-label {
+  overflow: hidden;
+  max-width: 100%;
+  color: var(--ink-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nearby-card strong {
+  margin-top: 4px;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 21px;
+  letter-spacing: -0.6px;
+}
+
+.nearby-card small {
+  color: var(--ink-muted);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.safer-route {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--heat-green) 27%, var(--line));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--heat-green) 6%, var(--surface));
+  color: var(--ink);
+  text-decoration: none;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.safer-route:hover {
+  transform: translateY(-1px);
+  border-color: var(--heat-green);
+}
+
+.route-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--heat-pale);
+  color: var(--heat-dark);
+  font-size: 18px;
+}
+
+.route-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.route-copy .card-kicker {
+  color: var(--heat-dark);
+  font-size: 8px;
+}
+
+.route-copy strong,
+.route-copy small {
+  display: block;
+}
+
+.route-copy strong {
+  font-size: 13px;
+}
+
+.route-copy small {
+  margin-top: 3px;
+  color: var(--ink-muted);
+  font-size: 10px;
+}
+
+.route-time {
+  color: var(--heat-dark);
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.route-time small {
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.route-chevron {
+  color: var(--heat-dark);
+  font-size: 16px;
+}
+
+.worker-reassurance {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 0 3px;
+}
+
+.worker-reassurance .tip-icon {
+  flex: 0 0 auto;
+  color: var(--heat-amber);
+}
+
+.worker-reassurance p {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.worker-layout .disclaimer {
+  margin-top: 9px;
+}
+
+@media (max-width: 540px) {
+  .page-content {
+    padding: 23px 14px 26px;
+  }
+
+  .worker-heading {
+    align-items: flex-end;
+    flex-direction: row;
+    gap: 8px;
+    margin: 13px 0 17px;
+  }
+
+  .worker-heading h1 {
+    margin-bottom: 6px;
+    font-size: 30px;
+    letter-spacing: -1.6px;
+  }
+
+  .worker-heading .lede {
+    max-width: 230px;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  .worker-heading .weather-chip {
+    gap: 5px;
+    padding: 6px 8px;
+    font-size: 9px;
+    white-space: nowrap;
+  }
+
+  .worker-heading .weather-chip b {
+    font-size: 11px;
+  }
+
+  .risk-card {
+    padding: 17px 15px 15px;
+    border-radius: 17px;
+  }
+
+  .risk-card h2 {
+    margin: 7px 0 3px;
+    font-size: 24px;
+  }
+
+  .risk-card-top {
+    gap: 8px;
+  }
+
+  .risk-card-top .card-kicker {
+    font-size: 8px;
+    letter-spacing: 0.9px;
+  }
+
+  .risk-card-top p {
+    font-size: 10px;
+  }
+
+  .risk-gauge {
+    min-width: 64px;
+    padding: 7px 8px;
+  }
+
+  .risk-gauge strong {
+    font-size: 25px;
+  }
+
+  .risk-scale {
+    margin: 16px 0 14px;
+  }
+
+  .scale-labels {
+    font-size: 8px;
+  }
+
+  .risk-facts {
+    padding-top: 12px;
+  }
+
+  .risk-facts .metric {
+    gap: 6px;
+    padding-inline: 8px;
+  }
+
+  .risk-facts .metric-label {
+    font-size: 8px;
+  }
+
+  .risk-facts .metric strong {
+    font-size: 17px;
+  }
+
+  .risk-facts .metric strong small {
+    margin-left: 2px;
+    font-size: 8px;
+  }
+
+  .heat-alert {
+    gap: 9px;
+    margin-top: 15px;
+    padding: 12px;
+  }
+
+  .heat-alert strong {
+    font-size: 13px;
+  }
+
+  .heat-alert p {
+    font-size: 10px;
+  }
+
+  .nearby-section {
+    margin-top: 18px;
+  }
+
+  .nearby-section .section-heading h2 {
+    font-size: 16px;
+  }
+
+  .nearby-grid {
+    gap: 7px;
+  }
+
+  .nearby-card {
+    padding: 10px 8px;
+  }
+
+  .nearby-icon {
+    width: 25px;
+    height: 25px;
+    margin-bottom: 7px;
+  }
+
+  .nearby-label {
+    font-size: 9px;
+  }
+
+  .nearby-card strong {
+    font-size: 19px;
+  }
+
+  .safer-route {
+    gap: 9px;
+    margin-top: 9px;
+    padding: 11px;
+  }
+
+  .route-icon {
+    width: 30px;
+    height: 30px;
+    flex-basis: 30px;
+  }
+
+  .worker-reassurance {
+    margin-top: 13px;
+  }
+}

@@ -51,9 +51,14 @@ describe('HeatShield routes', () => {
     window.history.replaceState({}, '', '/app')
     render(<App />)
 
-    expect(screen.getByRole('heading', { name: /make today a safer day/i })).toBeInTheDocument()
-    await waitFor(() => expect(screen.getByText('High risk')).toBeInTheDocument())
-    expect(screen.getByText('Take a water break before your next shift.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /your shift, safer/i })).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('Severe Heat Risk')).toBeInTheDocument())
+    expect(screen.getByText('Avoid outdoor work 1:00–3:30 PM')).toBeInTheDocument()
+    expect(screen.getByText('450')).toBeInTheDocument()
+    expect(screen.getByText('280')).toBeInTheDocument()
+    expect(screen.getByText('600')).toBeInTheDocument()
+    expect(screen.getByText('38% lower heat exposure')).toBeInTheDocument()
+    expect(screen.getByText('+6')).toBeInTheDocument()
     expect(screen.getByText('Mock data')).toBeInTheDocument()
   })
 
@@ -65,7 +70,7 @@ describe('HeatShield routes', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('API unavailable')
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
 
-    expect(await screen.findByText('High risk')).toBeInTheDocument()
+    expect(await screen.findByText('Severe Heat Risk')).toBeInTheDocument()
   })
 
   it('renders the city dashboard at /city', async () => {
@@ -83,6 +88,7 @@ describe('HeatShield routes', () => {
 
     expect(await screen.findByRole('heading', { name: /take the cooler way/i })).toBeInTheDocument()
     expect(screen.getByText('18.4')).toBeInTheDocument()
+    expect(screen.getByText('24.4')).toBeInTheDocument()
   })
 
   it('renders the resources map with local resources', async () => {
@@ -112,7 +118,7 @@ describe('HeatShield routes', () => {
   })
 
   it.each([
-    ['Risk Card', /make today a safer day/i],
+    ['Risk Card', /your shift, safer/i],
     ['Heat-Safe Route', /take the cooler way/i],
     ['Resources Map', /find a place to cool down/i],
     ['City Heatmap', /see where heat hits hardest/i],

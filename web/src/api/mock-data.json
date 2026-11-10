@@ -1,17 +1,17 @@
 {
   "risk": {
-    "risk_score": 78,
-    "level": "high",
-    "wbgt_c": 32.4,
+    "risk_score": 94,
+    "level": "extreme",
+    "wbgt_c": 34.1,
     "factors": [
       "High afternoon temperature",
-      "Limited shade",
-      "Longer outdoor exposure increases the mock score"
+      "Limited shade on the delivery route",
+      "Outdoor work during peak afternoon heat"
     ],
     "actions": [
-      "Take a water break before your next shift.",
-      "Plan the heaviest work before 11 AM.",
-      "Rest in shade for 10 minutes every hour."
+      "Avoid outdoor work from 1:00–3:30 PM.",
+      "Take a shaded rest break away from the road.",
+      "Keep water close and sip regularly."
     ]
   },
   "heatmap": {
@@ -46,15 +46,15 @@
         "coordinates": [[77.081, 28.743], [77.112, 28.747]]
       },
       "duration_min": 18.4,
-      "exposure": 76
+      "exposure": 100
     },
     "coolest": {
       "geometry": {
         "type": "LineString",
         "coordinates": [[77.081, 28.743], [77.093, 28.754], [77.112, 28.747]]
       },
-      "duration_min": 22.8,
-      "exposure": 41
+      "duration_min": 24.4,
+      "exposure": 62
     }
   },
   "resources": [

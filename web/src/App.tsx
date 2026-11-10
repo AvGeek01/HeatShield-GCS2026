@@ -119,13 +119,13 @@ function WorkerApp() {
     <PageFrame>
       <section className="worker-layout">
         <div className="worker-main">
-          <div className="eyebrow"><span className="live-dot" /> YOUR HEAT CHECK <span className="eyebrow-divider">/</span> TODAY, 18 OCT</div>
+          <div className="eyebrow"><span className="live-dot" /> YOUR SHIFT CHECK <span className="eyebrow-divider">/</span> DELHI, 1:30 PM</div>
           <div className="worker-heading">
             <div>
-              <h1>Make today a <em>safer</em> day.</h1>
-              <p className="lede">A little planning goes a long way in the heat.</p>
+              <h1>Your shift, <em>safer.</em></h1>
+              <p className="lede">A heat check for delivery workers in Rohini.</p>
             </div>
-            <span className="weather-chip"><span aria-hidden="true">☀</span> Mostly sunny <b>38°</b></span>
+            <span className="weather-chip"><span aria-hidden="true">☀</span> Delhi <b>38°</b></span>
           </div>
 
           {error && (
@@ -141,9 +141,9 @@ function WorkerApp() {
           <section className="risk-card" aria-label="Your heat risk">
             <div className="risk-card-top">
               <div>
-                <span className="card-kicker">YOUR HEAT RISK</span>
-                <h2>{assessment ? `${assessment.level[0].toUpperCase()}${assessment.level.slice(1)} risk` : 'Loading your forecast'}</h2>
-                <p>Rohini, Delhi <span className="muted-separator">·</span> Updated just now</p>
+                <span className="card-kicker">DELIVERY WORKER <span className="muted-separator">·</span> ROHINI, DELHI</span>
+                <h2>{assessment ? (assessment.level === 'extreme' ? 'Severe Heat Risk' : `${assessment.level[0].toUpperCase()}${assessment.level.slice(1)} Heat Risk`) : 'Loading your forecast'}</h2>
+                <p>Today at 1:30 PM <span className="muted-separator">·</span> Updated just now</p>
               </div>
               <div className="risk-gauge" aria-label={assessment ? `Risk score ${assessment.risk_score} out of 100` : 'Risk score loading'}>
                 <strong>{assessment ? assessment.risk_score : '—'}</strong><span>/ 100</span>
@@ -154,54 +154,61 @@ function WorkerApp() {
               <div className="scale-labels"><span>Low</span><span>Moderate</span><span>High</span><span>Extreme</span></div>
             </div>
             <div className="risk-facts">
-              <Metric label="Feels like" value={assessment ? `${assessment.wbgt_c}°` : '—'} unit=" WBGT" tone="hot" />
-              <Metric label="Peak heat" value="1–4" unit=" PM" tone="warm" />
-              <Metric label="Best break" value="12:30" unit=" PM" />
+              <Metric label="Heat stress" value={assessment ? `${assessment.wbgt_c}°` : '—'} unit=" WBGT" tone="hot" />
+              <Metric label="Current time" value="1:30" unit=" PM" tone="warm" />
+              <Metric label="Risk eases" value="3:30" unit=" PM" />
             </div>
-          </section>
 
-          <section className="actions-section">
-            <div className="section-heading">
-              <div><span className="card-kicker">A PLAN THAT HELPS</span><h2>Your next steps</h2></div>
-              <span className="action-count">{assessment?.actions.length ?? 3} actions</span>
+            <div className="heat-alert">
+              <span className="heat-alert-icon" aria-hidden="true">!</span>
+              <div>
+                <span className="card-kicker">DO THIS NOW</span>
+                <strong>Avoid outdoor work 1:00–3:30 PM</strong>
+                <p>Move deliveries to a cooler part of your shift if you can.</p>
+              </div>
             </div>
-            <div className="action-list">
-              {(assessment?.actions ?? [
-                'Take a water break before your next shift.',
-                'Plan the heaviest work before 11 AM.',
-                'Rest in shade for 10 minutes every hour.',
-              ]).map((action, index) => (
-                <article className="action-item" key={action}>
-                  <span className={`action-number action-${index + 1}`}>0{index + 1}</span>
-                  <p>{action}</p>
-                  <span className="action-arrow" aria-hidden="true">↗</span>
+
+            <div className="nearby-section">
+              <div className="section-heading">
+                <div><span className="card-kicker">CLOSE BY</span><h2>Places to cool down</h2></div>
+                <NavLink className="text-link" to="/resources">See map <span aria-hidden="true">↗</span></NavLink>
+              </div>
+              <div className="nearby-grid" aria-label="Nearby heat-safety resources">
+                <article className="nearby-card">
+                  <span className="nearby-icon nearby-icon-shade" aria-hidden="true">◒</span>
+                  <span className="nearby-label">Shaded rest</span>
+                  <strong>450 <small>m</small></strong>
                 </article>
-              ))}
+                <article className="nearby-card">
+                  <span className="nearby-icon nearby-icon-water" aria-hidden="true">↘</span>
+                  <span className="nearby-label">Drinking water</span>
+                  <strong>280 <small>m</small></strong>
+                </article>
+                <article className="nearby-card">
+                  <span className="nearby-icon nearby-icon-cooling" aria-hidden="true">✳</span>
+                  <span className="nearby-label">Cooling spot</span>
+                  <strong>600 <small>m</small></strong>
+                </article>
+              </div>
             </div>
-          </section>
-        </div>
 
-        <aside className="worker-aside">
-          <div className="aside-label">HEAT, IN CONTEXT</div>
-          <div className="shade-card">
-            <div className="shade-graphic" aria-hidden="true">
-              <span className="sun-orb" />
-              <span className="shade-line shade-line-one" />
-              <span className="shade-line shade-line-two" />
-              <span className="shade-line shade-line-three" />
-            </div>
-            <div className="shade-copy">
-              <span className="card-kicker">A MOMENT TO RESET</span>
-              <h3>Find a cooler<br />place to pause.</h3>
-              <p>Water and shade can make a real difference. Check in with yourself and your team.</p>
-            </div>
-          </div>
-          <div className="tip-card">
+            <NavLink className="safer-route" to="/route">
+              <span className="route-icon" aria-hidden="true">↗</span>
+              <span className="route-copy">
+                <span className="card-kicker">A COOLER WAY</span>
+                <strong>Alternate route</strong>
+                <small>38% lower heat exposure</small>
+              </span>
+              <span className="route-time">+6 <small>min</small></span>
+              <span className="route-chevron" aria-hidden="true">→</span>
+            </NavLink>
+          </section>
+          <section className="worker-reassurance" aria-label="Heat safety reminder">
             <span className="tip-icon" aria-hidden="true">✳</span>
-            <div><span className="card-kicker">HEAT SMART</span><p>Feeling dizzy or unusually tired? Stop work, move to shade, and tell someone nearby.</p></div>
-          </div>
+            <p>Feeling dizzy or unusually tired? Stop work, move to shade, and tell someone nearby.</p>
+          </section>
           <p className="disclaimer">HeatShield guidance supports—not replaces—local health advice.</p>
-        </aside>
+        </div>
       </section>
     </PageFrame>
   )
