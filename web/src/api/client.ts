@@ -1,4 +1,5 @@
 import {
+  getMockHeatmapAtTime,
   getMockInterventionPlan,
   getMockResources,
   getMockSimulation,
@@ -83,7 +84,7 @@ export function getRiskAssessment(params: RiskRequest = defaultRiskRequest): Pro
 }
 
 export function getHeatmap(bbox: BBox = defaultBounds, ts = 'latest'): Promise<HeatmapResponse> {
-  if (isMockMode) return Promise.resolve(mockHeatmap)
+  if (isMockMode) return Promise.resolve(ts === 'latest' ? mockHeatmap : getMockHeatmapAtTime(ts))
   const query = new URLSearchParams({ bbox: bbox.join(','), ts })
   return request<HeatmapResponse>(`/api/heatmap?${query}`)
 }

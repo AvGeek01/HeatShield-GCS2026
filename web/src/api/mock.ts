@@ -15,6 +15,27 @@ export const mockRoute = mockData.route as RouteResponse
 export const mockInterventionPlan = mockData.optimize as InterventionPlan
 const mockResources = mockData.resources as Resource[]
 
+export function getMockHeatmapAtTime(timestamp: string): HeatmapResponse {
+  const hour = Number(timestamp.slice(0, 2))
+  const timeProgress = Math.max(0, Math.min(1, (hour - 10) / 3))
+  const riskReduction = (1 - timeProgress) * 20
+  const temperatureReduction = (1 - timeProgress) * 2.4
+  const wbgtReduction = (1 - timeProgress) * 1.8
+
+  return {
+    ...mockHeatmap,
+    features: mockHeatmap.features.map((feature) => ({
+      ...feature,
+      properties: {
+        ...feature.properties,
+        risk: Math.max(0, Math.round(feature.properties.risk - riskReduction)),
+        temp_c: Number((feature.properties.temp_c - temperatureReduction).toFixed(1)),
+        wbgt_c: Number((feature.properties.wbgt_c - wbgtReduction).toFixed(1)),
+      },
+    })),
+  }
+}
+
 export function getMockInterventionPlan(budget: number): InterventionPlan {
   let remaining = budget
   const ranked_hotspots = mockInterventionPlan.ranked_hotspots.map((hotspot) => {
@@ -82,11 +103,23 @@ export function getMockResources(
 
 export function getMockSimulation({ interventions }: SimulateRequest): HeatmapResponse {
   const reductions = new Map<string, number>()
+  const temperatureReductions = new Map<string, number>()
+  const wbgtReductions = new Map<string, number>()
   for (const intervention of interventions) {
     const reduction = intervention.type === 'cooling' ? 14 : intervention.type === 'shade' ? 10 : 6
+    const temperatureReduction = intervention.type === 'cooling' ? 2 : intervention.type === 'shade' ? 1.2 : 0.7
+    const wbgtReduction = intervention.type === 'cooling' ? 1.5 : intervention.type === 'shade' ? 0.8 : 0.5
     reductions.set(
       intervention.cell_id,
       (reductions.get(intervention.cell_id) ?? 0) + reduction * intervention.units,
+    )
+    temperatureReductions.set(
+      intervention.cell_id,
+      (temperatureReductions.get(intervention.cell_id) ?? 0) + temperatureReduction * intervention.units,
+    )
+    wbgtReductions.set(
+      intervention.cell_id,
+      (wbgtReductions.get(intervention.cell_id) ?? 0) + wbgtReduction * intervention.units,
     )
   }
 
@@ -94,12 +127,16 @@ export function getMockSimulation({ interventions }: SimulateRequest): HeatmapRe
     ...mockHeatmap,
     features: mockHeatmap.features.map((feature) => {
       const reduction = reductions.get(feature.properties.cell_id) ?? 0
+      const temperatureReduction = temperatureReductions.get(feature.properties.cell_id) ?? 0
+      const wbgtReduction = wbgtReductions.get(feature.properties.cell_id) ?? 0
       const risk = Math.max(0, feature.properties.risk - reduction)
       return {
         ...feature,
         properties: {
           ...feature.properties,
           risk,
+          temp_c: Number((feature.properties.temp_c - temperatureReduction).toFixed(1)),
+          wbgt_c: Number((feature.properties.wbgt_c - wbgtReduction).toFixed(1)),
         },
       }
     }),

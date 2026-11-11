@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { BrowserRouter, NavLink, Navigate, Route, Routes } from 'react-router-dom'
 import type { FeatureCollection, Point } from 'geojson'
@@ -75,11 +75,11 @@ function AppHeader() {
   )
 }
 
-function PageFrame({ children }: { children: ReactNode }) {
+function PageFrame({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <>
       <AppHeader />
-      <main className="page-content">{children}</main>
+      <main className={`page-content${className ? ` ${className}` : ''}`}>{children}</main>
       <footer className="site-footer">
         <span>HeatShield <span className="footer-dot">·</span> Built for hotter days</span>
         <span>Delhi <span aria-hidden="true">↗</span> Rohini</span>
@@ -214,18 +214,67 @@ function WorkerApp() {
   )
 }
 
-function HeatMap({ data }: { data: FeatureCollection<Point, HeatmapProperties> }) {
+type HeatmapDisplayProperties = HeatmapProperties & { hotspot_rank?: number; simulated?: boolean }
+
+function getHeatmapDisplayData(data: FeatureCollection<Point, HeatmapProperties>, coolingCellId?: string) {
+  const rankedIds = [...data.features]
+    .sort((left, right) => right.properties.risk - left.properties.risk)
+    .slice(0, 3)
+    .map((feature) => feature.properties.cell_id)
+  const ranks = new Map(rankedIds.map((id, index) => [id, index + 1]))
+
+  return {
+    ...data,
+    features: data.features.map((feature) => ({
+      ...feature,
+      properties: {
+        ...feature.properties,
+        hotspot_rank: ranks.get(feature.properties.cell_id),
+        simulated: feature.properties.cell_id === coolingCellId,
+      },
+    })),
+  } satisfies FeatureCollection<Point, HeatmapDisplayProperties>
+}
+
+function streetMapStyle() {
+  return {
+    version: 8 as const,
+    sources: {
+      streets: {
+        type: 'raster' as const,
+        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+        tileSize: 256,
+        attribution: '© OpenStreetMap contributors',
+      },
+    },
+    layers: [
+      { id: 'streets', type: 'raster' as const, source: 'streets', paint: { 'raster-saturation': -0.8, 'raster-opacity': 0.75 } },
+    ],
+  }
+}
+
+function HeatMap({ data, coolingCellId }: {
+  data: FeatureCollection<Point, HeatmapProperties>
+  coolingCellId?: string
+}) {
   const [mapElement, setMapElement] = useState<HTMLDivElement | null>(null)
   const [mapError, setMapError] = useState<string | null>(null)
+  const [mapReady, setMapReady] = useState(false)
+  const mapRef = useRef<import('maplibre-gl').Map | null>(null)
+  const hotspotMarkers = useRef(new Map<string, HTMLSpanElement>())
+  const displayData = useMemo(() => getHeatmapDisplayData(data, coolingCellId), [data, coolingCellId])
+  const initialDisplayData = useRef(displayData)
 
   useEffect(() => {
     if (!mapElement) return
 
     let map: import('maplibre-gl').Map | undefined
+    const markers: import('maplibre-gl').Marker[] = []
+    const markerElements = hotspotMarkers.current
     let cancelled = false
 
     import('maplibre-gl')
-      .then(({ Map: MapLibreMap }) => {
+      .then(({ Map: MapLibreMap, Marker }) => {
         if (cancelled) return
         map = new MapLibreMap({
           container: mapElement,
@@ -234,36 +283,37 @@ function HeatMap({ data }: { data: FeatureCollection<Point, HeatmapProperties> }
           minZoom: 10,
           maxZoom: 15,
           attributionControl: { compact: true },
-          style: {
-            version: 8,
-            sources: {
-              streets: {
-                type: 'raster',
-                tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-                tileSize: 256,
-                attribution: '© OpenStreetMap contributors',
-              },
-            },
-            layers: [
-              { id: 'streets', type: 'raster', source: 'streets', paint: { 'raster-saturation': -0.8, 'raster-opacity': 0.75 } },
-            ],
-          },
+          style: streetMapStyle(),
         })
+        mapRef.current = map
 
         map.on('load', () => {
-          map?.addSource('heat-risk', { type: 'geojson', data })
+          map?.addSource('heat-risk', { type: 'geojson', data: initialDisplayData.current })
           map?.addLayer({
             id: 'heat-risk-circles',
             type: 'circle',
             source: 'heat-risk',
             paint: {
-              'circle-color': ['interpolate', ['linear'], ['get', 'risk'], 0, '#2f855a', 40, '#d69e2e', 65, '#e77931', 85, '#a82a2a'],
+              'circle-color': ['case', ['==', ['get', 'simulated'], true], '#4c9568', ['interpolate', ['linear'], ['get', 'risk'], 0, '#2f855a', 40, '#d69e2e', 65, '#e77931', 85, '#a82a2a']],
               'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 10, 15, 25],
-              'circle-opacity': 0.72,
-              'circle-stroke-width': 2,
-              'circle-stroke-color': '#fffdf8',
+              'circle-opacity': ['case', ['==', ['get', 'simulated'], true], 0.92, 0.72],
+              'circle-stroke-width': ['case', ['==', ['get', 'simulated'], true], 4, 2],
+              'circle-stroke-color': ['case', ['==', ['get', 'simulated'], true], '#e7f6df', '#fffdf8'],
             },
           })
+          if (!map) return
+          for (const feature of initialDisplayData.current.features) {
+            const rank = feature.properties.hotspot_rank
+            if (rank === undefined) continue
+            const [longitude, latitude] = feature.geometry.coordinates
+            if (longitude === undefined || latitude === undefined) continue
+            const element = document.createElement('span')
+            element.className = 'map-hotspot-badge'
+            element.textContent = `#${rank}`
+            markerElements.set(feature.properties.cell_id, element)
+            markers.push(new Marker({ element }).setLngLat([longitude, latitude]).addTo(map))
+          }
+          setMapReady(true)
         })
       })
       .catch((reason: Error) => {
@@ -273,14 +323,139 @@ function HeatMap({ data }: { data: FeatureCollection<Point, HeatmapProperties> }
     return () => {
       cancelled = true
       map?.remove()
+      markers.forEach((marker) => marker.remove())
+      markerElements.clear()
+      mapRef.current = null
+      setMapReady(false)
     }
-  }, [data, mapElement])
+  }, [mapElement])
+
+  useEffect(() => {
+    if (!mapReady) return
+    const source = mapRef.current?.getSource('heat-risk') as import('maplibre-gl').GeoJSONSource | undefined
+    source?.setData(displayData)
+    for (const [cellId, element] of hotspotMarkers.current) {
+      element.classList.toggle('is-cooled', cellId === coolingCellId)
+    }
+  }, [coolingCellId, displayData, mapReady])
 
   return (
-    <div className="map-view" ref={setMapElement} role="img" aria-label="Map of heat risk hotspots in Rohini, Delhi">
+    <div
+      className="map-view"
+      ref={setMapElement}
+      role="img"
+      aria-label={coolingCellId ? 'Map of heat risk hotspots with the simulated hotspot cooled' : 'Map of heat risk hotspots in Rohini, Delhi'}
+    >
       {mapError && <span className="map-error">Map unavailable: {mapError}</span>}
     </div>
   )
+}
+
+function RouteMap({ route }: { route: RouteResponse }) {
+  const [mapElement, setMapElement] = useState<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!mapElement) return
+
+    let map: import('maplibre-gl').Map | undefined
+    const markers: import('maplibre-gl').Marker[] = []
+    let cancelled = false
+    import('maplibre-gl')
+      .then(({ Map: MapLibreMap, Marker }) => {
+        if (cancelled) return
+        map = new MapLibreMap({
+          container: mapElement,
+          center: [77.096, 28.745],
+          zoom: 13,
+          minZoom: 11,
+          maxZoom: 16,
+          attributionControl: { compact: true },
+          style: streetMapStyle(),
+        })
+        map.on('load', () => {
+          map?.addSource('route-options', {
+            type: 'geojson',
+            data: {
+              type: 'FeatureCollection',
+              features: (['fastest', 'coolest'] as const).map((kind) => ({
+                type: 'Feature' as const,
+                geometry: route[kind].geometry,
+                properties: { kind },
+              })),
+            },
+          })
+          map?.addLayer({
+            id: 'fastest-route',
+            type: 'line',
+            source: 'route-options',
+            filter: ['==', ['get', 'kind'], 'fastest'],
+            layout: { 'line-cap': 'round', 'line-join': 'round' },
+            paint: { 'line-color': '#d76545', 'line-width': 7, 'line-opacity': 0.9 },
+          })
+          map?.addLayer({
+            id: 'coolest-route',
+            type: 'line',
+            source: 'route-options',
+            filter: ['==', ['get', 'kind'], 'coolest'],
+            layout: { 'line-cap': 'round', 'line-join': 'round' },
+            paint: { 'line-color': '#377c59', 'line-width': 7, 'line-opacity': 0.95 },
+          })
+          const first = route.fastest.geometry.coordinates[0]
+          const last = route.fastest.geometry.coordinates.at(-1)
+          if (!first || !last) return
+          const [firstLongitude, firstLatitude] = first
+          const [lastLongitude, lastLatitude] = last
+          if (firstLongitude === undefined || firstLatitude === undefined || lastLongitude === undefined || lastLatitude === undefined) return
+          if (!map) return
+          const firstPoint: [number, number] = [firstLongitude, firstLatitude]
+          const lastPoint: [number, number] = [lastLongitude, lastLatitude]
+          map?.addSource('route-stops', {
+            type: 'geojson',
+            data: {
+              type: 'FeatureCollection',
+              features: [
+                { type: 'Feature', geometry: { type: 'Point', coordinates: firstPoint }, properties: { label: 'DTU' } },
+                { type: 'Feature', geometry: { type: 'Point', coordinates: lastPoint }, properties: { label: 'SECTOR 16' } },
+              ],
+            },
+          })
+          map?.addLayer({
+            id: 'route-stop-circles',
+            type: 'circle',
+            source: 'route-stops',
+            paint: { 'circle-radius': 8, 'circle-color': '#fffdf8', 'circle-stroke-color': '#234c3a', 'circle-stroke-width': 3 },
+          })
+          for (const stop of [
+            { coordinates: firstPoint, label: 'DTU' },
+            { coordinates: lastPoint, label: 'SECTOR 16' },
+          ]) {
+            const element = document.createElement('span')
+            element.className = 'route-stop-label'
+            element.textContent = stop.label
+            markers.push(new Marker({ element, anchor: 'bottom' }).setLngLat(stop.coordinates).addTo(map))
+          }
+        })
+      })
+      .catch((reason: Error) => {
+        if (!cancelled) console.error('HeatShield route map failed to load:', reason)
+      })
+
+    return () => {
+      cancelled = true
+      map?.remove()
+      markers.forEach((marker) => marker.remove())
+    }
+  }, [mapElement, route])
+
+  return <div className="route-map-view" ref={setMapElement} role="img" aria-label="Map comparing the fastest and coolest routes from DTU to Sector 16" />
+}
+
+const CITY_TIMES = ['10:00', '11:00', '12:00', '13:00'] as const
+type CityTime = typeof CITY_TIMES[number]
+
+function formatCityTime(time: CityTime): string {
+  const hour = Number(time.slice(0, 2))
+  return `${hour > 12 ? hour - 12 : hour}:00 ${hour >= 12 ? 'PM' : 'AM'}`
 }
 
 function CityApp() {
@@ -289,25 +464,48 @@ function CityApp() {
   const [heatmapError, setHeatmapError] = useState<string | null>(null)
   const [plan, setPlan] = useState<InterventionPlan | null>(null)
   const [planError, setPlanError] = useState<string | null>(null)
+  const [timeSlot, setTimeSlot] = useState<CityTime>('10:00')
+  const [isPlaying, setIsPlaying] = useState(false)
   const [heatmapRequest, setHeatmapRequest] = useState(0)
+  const [planRequest, setPlanRequest] = useState(0)
 
   useEffect(() => {
     let current = true
-    getHeatmap()
+    getHeatmap(DEFAULT_BOUNDS, timeSlot)
       .then((result) => { if (current) setHeatmap(result) })
       .catch((reason: unknown) => {
         if (current) setHeatmapError(reason instanceof Error ? reason.message : 'Unexpected response from the heatmap service.')
       })
       .finally(() => { if (current) setHeatmapLoading(false) })
+    return () => { current = false }
+  }, [timeSlot, heatmapRequest])
 
+  useEffect(() => {
+    let current = true
     getInterventionPlan()
       .then((result) => { if (current) setPlan(result) })
       .catch((reason: unknown) => {
         if (current) setPlanError(reason instanceof Error ? reason.message : 'Unexpected response from the optimizer service.')
       })
-
     return () => { current = false }
-  }, [heatmapRequest])
+  }, [planRequest])
+
+  useEffect(() => {
+    if (!isPlaying) return
+    const timer = window.setTimeout(() => {
+      if (timeSlot === CITY_TIMES[CITY_TIMES.length - 1]) {
+        setIsPlaying(false)
+        return
+      }
+      setHeatmapLoading(true)
+      setTimeSlot((current) => CITY_TIMES[CITY_TIMES.indexOf(current) + 1])
+    }, timeSlot === CITY_TIMES[CITY_TIMES.length - 1] ? 0 : 1_500)
+    return () => window.clearTimeout(timer)
+  }, [isPlaying, timeSlot])
+
+  const priorityHotspots = [...(heatmap?.features ?? [])]
+    .sort((left, right) => right.properties.risk - left.properties.risk)
+    .slice(0, 3)
 
   return (
     <PageFrame>
@@ -325,21 +523,73 @@ function CityApp() {
           onRetry={() => {
             setPlan(null)
             setPlanError(null)
+            setPlanRequest((request) => request + 1)
+          }}
+        />
+      )}
+      {heatmapError && heatmap && (
+        <ErrorBanner
+          message={`heatmap for ${formatCityTime(timeSlot)}: ${heatmapError}`}
+          onRetry={() => {
+            setHeatmapError(null)
+            setHeatmapLoading(true)
             setHeatmapRequest((request) => request + 1)
           }}
         />
       )}
       <section className="city-metrics" aria-label="City heat metrics">
         <Metric label="People at high risk" value={plan ? plan.population_exposed.toLocaleString('en-IN') : '—'} tone="hot" />
-        <Metric label="Priority hotspots" value={heatmap ? String(heatmap.features.filter((feature) => feature.properties.risk >= 65).length).padStart(2, '0') : '—'} tone="warm" />
+        <Metric label="Priority hotspots" value={heatmap ? String(priorityHotspots.length).padStart(2, '0') : '—'} tone="warm" />
         <Metric label="Interventions ready" value={plan ? String(plan.interventions.length).padStart(2, '0') : '—'} />
         <div className="metric-note"><span className="live-dot" /><span>Forecast refreshed<br /><strong>Today, 9:40 AM</strong></span></div>
+      </section>
+      <section className="heat-timeline" aria-label="Heatmap time controls">
+        <div className="timeline-heading">
+          <div><span className="card-kicker">FORECAST PLAYBACK</span><strong>Heat through the day</strong></div>
+          <span className="timeline-current">{formatCityTime(timeSlot)}</span>
+        </div>
+        <div className="timeline-controls">
+          <button
+            className="timeline-play"
+            type="button"
+            aria-pressed={isPlaying}
+            onClick={() => {
+              if (!isPlaying && timeSlot === CITY_TIMES[CITY_TIMES.length - 1]) setTimeSlot(CITY_TIMES[0])
+              setHeatmapError(null)
+              setIsPlaying((playing) => !playing)
+            }}
+          >
+            <span aria-hidden="true">{isPlaying ? 'Ⅱ' : '▶'}</span>{isPlaying ? 'Pause' : 'Play'}
+          </button>
+          <div className="timeline-slots">
+            {CITY_TIMES.map((time, index) => (
+              <button
+                key={time}
+                type="button"
+                aria-pressed={timeSlot === time}
+                className={`timeline-slot${timeSlot === time ? ' selected' : ''}`}
+                onClick={() => {
+                  setIsPlaying(false)
+                  setHeatmapError(null)
+                  if (time !== timeSlot) {
+                    setHeatmapLoading(true)
+                    setTimeSlot(time)
+                  }
+                }}
+              >
+                <span className="timeline-dot" />
+                <span>{formatCityTime(time)}</span>
+                {index < CITY_TIMES.length - 1 && <span className="timeline-connector" aria-hidden="true" />}
+              </button>
+            ))}
+          </div>
+        </div>
       </section>
       <section className="city-grid">
         <article className="panel map-panel">
           <div className="panel-heading">
             <div><span className="card-kicker">NEIGHBOURHOOD VIEW</span><h2>Rohini heat map</h2></div>
-            <button className="small-select" type="button">Heat risk <span aria-hidden="true">⌄</span></button>
+            <span className="heatmap-time-chip">{formatCityTime(timeSlot)} forecast</span>
           </div>
           {heatmap
             ? <HeatMap data={heatmap} />
@@ -358,6 +608,7 @@ function CityApp() {
                           setPlanError(null)
                           setHeatmapLoading(true)
                           setHeatmapRequest((request) => request + 1)
+                          setPlanRequest((request) => request + 1)
                         }}
                       >
                         Try again
@@ -369,6 +620,15 @@ function CityApp() {
           <div className="map-legend">
             <span>LOWER RISK</span><div className="legend-gradient" /><span>HIGHER RISK</span>
             <span className="legend-area">Showing <strong>Rohini · Ward 22</strong></span>
+          </div>
+          <div className="hotspot-callouts" role="group" aria-label="Three priority hotspots">
+            {priorityHotspots.map((feature, index) => (
+              <article className="hotspot-callout" key={feature.properties.cell_id}>
+                <span className="hotspot-number">{String(index + 1).padStart(2, '0')}</span>
+                <span className="hotspot-location">Hotspot {index + 1}<small>Rohini · {feature.geometry.coordinates[1].toFixed(3)}°N</small></span>
+                <strong>{feature.properties.risk.toFixed(0)}<small> risk</small></strong>
+              </article>
+            ))}
           </div>
         </article>
         <article className="panel optimizer-panel">
@@ -417,7 +677,7 @@ function RoutePage() {
   }, [requestNumber])
 
   return (
-    <PageFrame>
+    <PageFrame className="route-page-content">
       <PageIntro eyebrow="PERSONAL SAFETY / ROHINI" title={<>Take the <em>cooler way.</em></>} description="Compare the quickest trip with a lower-heat route for your journey." />
       {error && (
         <ErrorBanner
@@ -449,6 +709,20 @@ function RoutePage() {
           )
         })}
       </section>
+      {route && (
+        <article className="panel route-map-panel">
+          <div className="panel-heading">
+            <div><span className="card-kicker">ROUTE COMPARISON / ROHINI</span><h2>Choose your way to Sector 16</h2></div>
+            <span className="heatmap-time-chip">DTU · ROHINI</span>
+          </div>
+          <RouteMap route={route} />
+          <div className="route-map-legend" aria-label="Route map legend">
+            <span><i className="route-legend-fastest" /> Fastest · {route.fastest.duration_min.toFixed(1)} min</span>
+            <span><i className="route-legend-coolest" /> Coolest · {route.coolest.duration_min.toFixed(1)} min</span>
+            <span className="route-exposure-note">{route.coolest.exposure.toFixed(0)}% heat exposure on cooler route</span>
+          </div>
+        </article>
+      )}
       <section className="panel route-note">
         <span className="route-start">DTU · ROHINI</span><span className="route-line" aria-hidden="true" /><span className="route-end">SECTOR 16</span>
         <p>Route estimates use the Delhi pilot forecast. Choose the cooler option when conditions feel unsafe.</p>
@@ -668,7 +942,7 @@ function SimulatorPage() {
             {RESOURCE_TYPES.map((item) => <option key={item} value={item}>{resourceLabel(item)}</option>)}
           </select>
           <button className="primary-button" type="button" onClick={runSimulation} disabled={loading || !cellId}>
-            {loading ? 'Calculating…' : 'Run simulation'} <span aria-hidden="true">→</span>
+            {loading ? 'Cooling hotspot…' : 'Simulate intervention'} <span className={loading ? 'simulation-button-icon is-spinning' : 'simulation-button-icon'} aria-hidden="true">✳</span>
           </button>
         </article>
         <article className="panel simulation-results">
@@ -681,7 +955,7 @@ function SimulatorPage() {
           {selectedSimulation && selectedBaseline && (
             <p className="simulation-change">Estimated reduction: {(selectedBaseline.properties.risk - selectedSimulation.properties.risk).toFixed(1)} risk points · WBGT {selectedBaseline.properties.wbgt_c}°C → {selectedSimulation.properties.wbgt_c}°C</p>
           )}
-          {baseline && <HeatMap data={simulation ?? baseline} />}
+          {baseline && <HeatMap data={simulation ?? baseline} coolingCellId={simulation ? cellId : undefined} />}
         </article>
       </section>
     </PageFrame>

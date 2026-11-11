@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { getRiskAssessment } from './api/client'
 import {
+  getMockHeatmapAtTime,
   getMockSimulation,
   mockHeatmap,
   mockInterventionPlan,
@@ -47,6 +48,15 @@ afterEach(() => {
 })
 
 describe('HeatShield routes', () => {
+  it('creates cooler morning mock frames and preserves the 1 PM baseline', () => {
+    const morning = getMockHeatmapAtTime('10:00').features[0]?.properties
+    const afternoon = getMockHeatmapAtTime('13:00').features[0]?.properties
+
+    expect(morning).toMatchObject({ risk: 68, temp_c: 36.7, wbgt_c: 31.4 })
+    expect(afternoon).toMatchObject({ risk: 88, temp_c: 39.1, wbgt_c: 33.2 })
+    expect(mockHeatmap.features[0]?.properties.risk).toBe(88)
+  })
+
   it('renders the worker app at /app', async () => {
     window.history.replaceState({}, '', '/app')
     render(<App />)
@@ -80,6 +90,11 @@ describe('HeatShield routes', () => {
     expect(screen.getByRole('heading', { name: /see where heat hits hardest/i })).toBeInTheDocument()
     expect(await screen.findByRole('img', { name: /map of heat risk hotspots/i })).toBeInTheDocument()
     expect(screen.getByText('Temporary shade points')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Heatmap time controls' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Three priority hotspots' }).children).toHaveLength(3)
+
+    fireEvent.click(screen.getByRole('button', { name: '1:00 PM' }))
+    expect(screen.getByRole('button', { name: '1:00 PM' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('renders the heat-safe route page from mock route data', async () => {
@@ -89,6 +104,7 @@ describe('HeatShield routes', () => {
     expect(await screen.findByRole('heading', { name: /take the cooler way/i })).toBeInTheDocument()
     expect(screen.getByText('18.4')).toBeInTheDocument()
     expect(screen.getByText('24.4')).toBeInTheDocument()
+    expect(await screen.findByRole('img', { name: /map comparing the fastest and coolest routes/i })).toBeInTheDocument()
   })
 
   it('renders the resources map with local resources', async () => {
@@ -112,9 +128,10 @@ describe('HeatShield routes', () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: /test a cooler tomorrow/i })).toBeInTheDocument()
-    screen.getByRole('button', { name: /run simulation/i }).click()
+    fireEvent.click(await screen.findByRole('button', { name: /simulate intervention/i }))
     expect(await screen.findByText(/estimated reduction: 10.0 risk points/i)).toBeInTheDocument()
-    expect(screen.getByText(/WBGT 33.2°C → 33.2°C/i)).toBeInTheDocument()
+    expect(screen.getByText(/WBGT 33.2°C → 32.4°C/i)).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /simulated hotspot cooled/i })).toBeInTheDocument()
   })
 
   it.each([
