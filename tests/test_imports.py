@@ -56,15 +56,15 @@ def test_scaffold_functions_raise_not_implemented() -> None:
     ) > 0.0
     with pytest.raises(NotImplementedError):
         model.predict_risk({})
-    with pytest.raises(NotImplementedError):
-        risk.assess_risk(
-            lat=28.7,
-            lon=77.1,
-            activity="walking",
-            duration_min=30,
-            profile="default",
-            weather={},
-        )
+    result = risk.assess_risk(
+        lat=28.7,
+        lon=77.1,
+        activity="walking",
+        duration_min=30,
+        profile="general",
+        weather={"wbgt_c": 30.0},
+    )
+    assert 0.0 <= result["risk_score"] <= 100.0
     with pytest.raises(NotImplementedError):
         routing.find_heat_aware_route(
             start=(28.7, 77.1),
