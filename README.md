@@ -40,6 +40,28 @@ implemented.
 
 ### `/backend`
 
+Run the backend setup from the repository root. Run backend\scripts\setup_backend.ps1; it creates backend\.env for you.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File backend\scripts\setup_backend.ps1
+```
+
+The setup creates the repository-root `.venv`, installs the backend dependencies, creates a local development password in `backend\.env` (which is git-ignored), and verifies the database migrations and tests. To skip Docker/PostGIS checks, add `-SkipDocker`.
+
+To run the API locally after setup, activate the virtual environment from the repository root, then start Uvicorn from `backend`:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+Set-Location backend
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+To check the API endpoints, run this from the repository root in another PowerShell window:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File backend\scripts\check_api.ps1
+```
+
 ### `/heatcore`
 
 Create and activate the Python 3.13 virtual environment, then install the
@@ -66,5 +88,3 @@ python -m pip install -e "heatcore[ml,geospatial,optimization]"
 ### `/data`
 
 ### `/docs`
-
-<!-- Run commands will be added as each component becomes runnable. -->

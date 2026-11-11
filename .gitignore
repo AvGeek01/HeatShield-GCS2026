@@ -24,7 +24,9 @@ dist/
 .env
 .env.*
 !.env.example
+.env.local
 *.env.local
+backend/.env
 secrets.h
 
 # Editor and operating system files
